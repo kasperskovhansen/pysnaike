@@ -122,7 +122,7 @@ class Sequential:
                 excerpt = slice(start_idx, end_idx)                            
             yield [inputs[excerpt], outputs[excerpt]]
 
-    def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False):
+    def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
         &#34;&#34;&#34;Train the model.
 
         Args:
@@ -139,7 +139,7 @@ class Sequential:
                 
         self.learning_rate = learning_rate
 
-        for _ in tqdm(range(epochs)):
+        for epoch in tqdm(range(epochs)):            
             if optimizer.upper() == &#39;SGD&#39;:
                 mini_b_size = 1
             elif optimizer.upper() == &#39;BATCH&#39;:
@@ -184,7 +184,7 @@ class Sequential:
         &#34;&#34;&#34;Calculate the output from the network for a given set of input values.
         
         Args:
-            inputs (str, required): Input values for the network.    
+            inputs (required): Input values for the network.    
 
         Returns:
             list: The output values from the network.        
@@ -201,7 +201,7 @@ class Sequential:
         return params[&#39;A&#39; + str(len(self.layers) - 1)]
 
     def backward_pass(self, output, target):
-        &#34;&#34;&#34;Propagate backward thrugh the network.
+        &#34;&#34;&#34;Propagate backward through the network.
 
         Using the backpropagation algorithm to calculate the updates for the neural network parameters.
 
@@ -354,7 +354,7 @@ Add checkpoint callback support.</p></div>
                 excerpt = slice(start_idx, end_idx)                            
             yield [inputs[excerpt], outputs[excerpt]]
 
-    def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False):
+    def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
         &#34;&#34;&#34;Train the model.
 
         Args:
@@ -371,7 +371,7 @@ Add checkpoint callback support.</p></div>
                 
         self.learning_rate = learning_rate
 
-        for _ in tqdm(range(epochs)):
+        for epoch in tqdm(range(epochs)):            
             if optimizer.upper() == &#39;SGD&#39;:
                 mini_b_size = 1
             elif optimizer.upper() == &#39;BATCH&#39;:
@@ -416,7 +416,7 @@ Add checkpoint callback support.</p></div>
         &#34;&#34;&#34;Calculate the output from the network for a given set of input values.
         
         Args:
-            inputs (str, required): Input values for the network.    
+            inputs (required): Input values for the network.    
 
         Returns:
             list: The output values from the network.        
@@ -433,7 +433,7 @@ Add checkpoint callback support.</p></div>
         return params[&#39;A&#39; + str(len(self.layers) - 1)]
 
     def backward_pass(self, output, target):
-        &#34;&#34;&#34;Propagate backward thrugh the network.
+        &#34;&#34;&#34;Propagate backward through the network.
 
         Using the backpropagation algorithm to calculate the updates for the neural network parameters.
 
@@ -497,7 +497,7 @@ Add checkpoint callback support.</p></div>
 <span>def <span class="ident">backward_pass</span></span>(<span>self, output, target)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Propagate backward thrugh the network.</p>
+<div class="desc"><p>Propagate backward through the network.</p>
 <p>Using the backpropagation algorithm to calculate the updates for the neural network parameters.</p>
 <h2 id="args">Args</h2>
 <dl>
@@ -516,7 +516,7 @@ Add checkpoint callback support.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def backward_pass(self, output, target):
-    &#34;&#34;&#34;Propagate backward thrugh the network.
+    &#34;&#34;&#34;Propagate backward through the network.
 
     Using the backpropagation algorithm to calculate the updates for the neural network parameters.
 
@@ -619,7 +619,7 @@ correct labels for a number of unknown test examples.
 <div class="desc"><p>Calculate the output from the network for a given set of input values.</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>inputs</code></strong> :&ensp;<code>str, required</code></dt>
+<dt><strong><code>inputs</code></strong> :&ensp;<code>required</code></dt>
 <dd>Input values for the network.
 </dd>
 </dl>
@@ -636,7 +636,7 @@ correct labels for a number of unknown test examples.
     &#34;&#34;&#34;Calculate the output from the network for a given set of input values.
     
     Args:
-        inputs (str, required): Input values for the network.    
+        inputs (required): Input values for the network.    
 
     Returns:
         list: The output values from the network.        
@@ -761,7 +761,7 @@ correct labels for a number of unknown test examples.
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.train"><code class="name flex">
-<span>def <span class="ident">train</span></span>(<span>self, inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False)</span>
+<span>def <span class="ident">train</span></span>(<span>self, inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Train the model.</p>
@@ -786,7 +786,7 @@ correct labels for a number of unknown test examples.
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False):
+<pre><code class="python">def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
     &#34;&#34;&#34;Train the model.
 
     Args:
@@ -803,7 +803,7 @@ correct labels for a number of unknown test examples.
             
     self.learning_rate = learning_rate
 
-    for _ in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs)):            
         if optimizer.upper() == &#39;SGD&#39;:
             mini_b_size = 1
         elif optimizer.upper() == &#39;BATCH&#39;:

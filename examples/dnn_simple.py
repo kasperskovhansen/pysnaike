@@ -1,18 +1,24 @@
-import sys
+"""Simple Deep Neural Network example.
+"""
+
 import os.path
+import sys
+
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
 import numpy as np
-from pysnaike import models, layers, activations
+from pysnaike import activations, layers, models
+
 
 # Create dataset.
-num_in = 5
-inputs = np.random.randint(0, 4, size=[num_in, 10000])
-
-outputs = (np.sum(inputs, axis=0)) / (inputs.shape[0] * 3)
+num_in = 10
+options = 10
+inputs = np.random.randint(0, options + 1, size=[num_in, 10000])
+outputs = (np.sum(inputs, axis=0)) / (inputs.shape[0] * options)
 inputs = inputs.T
 outputs = outputs.T
+
 print(inputs)
 print(outputs)
 
@@ -26,16 +32,15 @@ myModel.add(layers.Dense(1, activation=activations.sigmoid))
 
 myModel.compile()
 
-myModel.train(inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.0001)
+myModel.train(inputs, outputs, optimizer='SGD', epochs=2, learning_rate=0.001)
 
 # Create test data
-
-inputs = np.random.randint(0, 4, size=[num_in, 100])
-
-outputs = (np.sum(inputs, axis=0)) / (inputs.shape[0] * 3)
+inputs = np.random.randint(0, options + 1, size=[num_in, 100])
+outputs = (np.sum(inputs, axis=0)) / (inputs.shape[0] * options)
 inputs = inputs.T
 outputs = outputs.T
 
+# Compare model output to test data output
 for i in range(0, 100):
     test_input = inputs[i]
     test_output = outputs[i]

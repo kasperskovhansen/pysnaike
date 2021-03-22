@@ -5,3 +5,10 @@ Python framework for AI and ML.
 
 ## Docs
 Have a look at the documentation in the ```docs``` folder.
+
+Docs are created using ```pdoc```using command 
+```pdoc --html --output-dir docs pysnaike --force```
+from the root folder.
+
+To start a live server with the docs run
+```pdoc --http : pysnaike```

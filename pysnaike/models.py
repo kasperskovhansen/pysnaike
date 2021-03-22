@@ -93,7 +93,7 @@ class Sequential:
                 excerpt = slice(start_idx, end_idx)                            
             yield [inputs[excerpt], outputs[excerpt]]
 
-    def train(self, inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False):
+    def train(self, inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
         """Train the model.
 
         Args:
@@ -110,7 +110,7 @@ class Sequential:
                 
         self.learning_rate = learning_rate
 
-        for _ in tqdm(range(epochs)):
+        for epoch in tqdm(range(epochs)):            
             if optimizer.upper() == 'SGD':
                 mini_b_size = 1
             elif optimizer.upper() == 'BATCH':
@@ -155,7 +155,7 @@ class Sequential:
         """Calculate the output from the network for a given set of input values.
         
         Args:
-            inputs (str, required): Input values for the network.    
+            inputs (required): Input values for the network.    
 
         Returns:
             list: The output values from the network.        
