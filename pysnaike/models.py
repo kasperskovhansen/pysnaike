@@ -190,7 +190,7 @@ class Sequential:
         
         last_layer = len(self.layers) - 1
 
-        # Calculate last layer updates
+        # Calculate last layer updates        
         error = 2 * (output - target) / output.shape[0] * self.layers[-1].activation(params['Z' + str(last_layer)], derivative=True)
         new_params['W' + str(last_layer)] = np.outer(error, params['A' + str(last_layer - 1)])        
         new_params['B' + str(last_layer)] = error
