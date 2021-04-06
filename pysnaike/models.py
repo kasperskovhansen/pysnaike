@@ -4,6 +4,7 @@
 import numpy as np
 import pysnaike.activations as activations
 from tqdm import tqdm
+import os.path
 
 
 class Sequential:
@@ -202,6 +203,19 @@ class Sequential:
             new_params['B' + str(i)] = error
         
         return new_params
+
+    def load_params(self, params_path):
+        """Load network parameters from `params_path`.
+
+        Args:
+            params_path (str): Path to .npz file.
+        """
+        # Load trained network from .npz file
+        if os.path.exists(params_path):
+            params = np.load(params_path)
+            for key in params.files:                
+                self.params[key] = params[key]            
+
 
     def __str__(self) -> str:
         return f"<Sequential model class object>"

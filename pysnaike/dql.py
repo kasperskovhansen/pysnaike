@@ -5,13 +5,14 @@ Perhaps use name Agent for a class.
 
 import random
 import numpy as np
+import os.path
 from pysnaike import activations, layers, models
 
 class Client():
     """Deep Q Learning client who acts on states and learns by its mistakes.
     """
 
-    def __init__(self, epsilon=0.9, gamma=0.9, memory_capacity=10000, batch_size=64, learning_rate=0.01, Q_1=None, num_inputs=None, num_actions=None):
+    def __init__(self, epsilon=0.9, gamma=0.9, memory_capacity=10000, batch_size=10, learning_rate=0.01, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
         
         self.state = None
         self.is_terminal = False
@@ -31,6 +32,9 @@ class Client():
 
         # Replay memory
         self.exp_bank = ExpReplay(self.memory_capacity)
+        if memory_path and os.path.exists(memory_path):
+            memory = np.load(memory_path, allow_pickle=True)            
+            self.exp_bank.memory = memory['exp_bank'][-self.memory_capacity:].tolist()
 
         # Action-value function
         if Q_1 is not None:
@@ -46,6 +50,10 @@ class Client():
             self.Q_1.compile()
         else:
             raise ValueError()
+
+        if params_path:
+            self.Q_1.load_params(params_path)
+            self.Q_2 = self.Q_1
 
         self.Q_2 = self.Q_1
 
@@ -91,41 +99,45 @@ class Client():
 
         return max(enumerate(iterable), key=lambda x: x[1])[0]
 
-    def add_exp(self, new_state, is_terminal):
+    def add_exp(self, state, action, reward, new_state, new_is_terminal):
         """Add experience to the experience bank.
 
         Args:
+            state
+            action
+            reward
             new_state: The new state.
-            is_terminal (bool): Whether `new_state` is terminal.
+            new_is_terminal (bool): Whether `new_state` is terminal.
         """
 
-        exp = { 'state': self.state,
-                'action': self.action,
-                'reward': self.reward,
-                'new_state': (new_state, is_terminal)}
+        exp = [self.state,
+                self.action,
+                self.reward,
+                (new_state, new_is_terminal)]
 
-        self.exp_bank.push(**exp)
+        self.exp_bank.push(exp)
 
     def train(self):
         """Train the model based on samples from the experience bank.
         """
 
         samples = self.exp_bank.sample(self.batch_size)
+        # [state, action, reward, (new_state, is_terminal)]
         outputs = None
         targets = None
         if not samples or self.exp_bank.memory.count(None) is not 0:
             return
 
         for sample in samples:
-            if sample.new_state[1]:
+            if sample[3][1]:
                 # new_state is terminal
-                target = sample.reward
+                target = sample[2]
             else:
-                target = sample.reward + self.gamma * max(self.Q_2.forward_pass(sample.new_state[0]))
+                target = sample[2] + self.gamma * max(self.Q_2.forward_pass(sample[3][0]))
 
-            new_outputs = self.Q_1.forward_pass(sample.state)
+            new_outputs = self.Q_1.forward_pass(sample[0])
             new_targets = new_outputs.copy()
-            new_targets[sample.action] = target
+            new_targets[sample[1]] = target
 
             if targets is not None:
                 targets = np.vstack((targets, new_targets))
@@ -165,16 +177,19 @@ class ExpReplay():
 
     def __init__(self, capacity):
         self.capacity = capacity
-        self.memory = []
+        self.memory = [None] * self.capacity
         self.position = 0
 
-    def push(self, **kvargs):
+    def push(self, memory):
         """Add a transition to the memory
         """
 
-        while len(self.memory) < self.capacity:
-            self.memory.append(None)
-        self.memory[self.position] = Transition(**kvargs)
+        # while len(self.memory) < self.capacity:
+        #     self.memory.append(None)
+        # self.memory[self.position] = Transition(**kvargs)
+        self.memory.pop(self.position)
+        # self.memory[self.position]
+        self.memory.append(memory)
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):

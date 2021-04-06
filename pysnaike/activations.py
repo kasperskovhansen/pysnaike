@@ -15,9 +15,10 @@ def softmax(x, derivative=False):
     """
 
     exps = np.exp(x - x.max())
+    temp = exps / np.sum(exps, axis=0)
     if derivative:
-        return exps / np.sum(exps, axis=0) * (1 - exps / np.sum(exps, axis=0))
-    return exps / np.sum(exps, axis=0)
+        return temp * (1 - temp)
+    return temp
 
 
 def identity(x, derivative=False):
@@ -42,8 +43,9 @@ def input(x, derivative=False):
 
     return x
 
+# _sigmoid_not_vect
 
-def _sigmoid_not_vect(x, derivative=False):
+def sigmoid(x, derivative=False):
     """Non vectorized sigmoid activation function.
     
     The values are treated separately and will have a value between 0 and 1.
@@ -56,7 +58,7 @@ def _sigmoid_not_vect(x, derivative=False):
         return (np.exp(-x))/((np.exp(-x)+1)**2)
     return 1/(1+np.exp(-x))
 
-
+# _relu_not_vect
 def _relu_not_vect(x, derivative=False):
     """Non vectorized ReLU activation function.
 
@@ -75,7 +77,7 @@ def _relu_not_vect(x, derivative=False):
 
 # Vectorize activation functions
 __relu = np.vectorize(_relu_not_vect)
-__sigmoid = np.vectorize(_sigmoid_not_vect)
+# __sigmoid = np.vectorize(_sigmoid_not_vect)
 
 
 def relu(x, derivative=False):
@@ -89,12 +91,12 @@ def relu(x, derivative=False):
     return __relu(x, derivative=derivative)
 
 
-def sigmoid(x, derivative=False):
-    """Vectorized sigmoid activation function.
+# def sigmoid(x, derivative=False):
+#     """Vectorized sigmoid activation function.
 
-    Args:
-        x (list): Vector with input values.
-        derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
-    """
+#     Args:
+#         x (list): Vector with input values.
+#         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
+#     """
 
-    return __sigmoid(x, derivative=derivative)
+#     return __sigmoid(x, derivative=derivative)
