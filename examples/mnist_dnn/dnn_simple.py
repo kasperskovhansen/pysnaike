@@ -19,20 +19,22 @@ outputs = (np.sum(inputs, axis=0)) / (inputs.shape[0] * options)
 inputs = inputs.T
 outputs = outputs.T
 
-print(inputs)
-print(outputs)
+# print(inputs)
+# print(outputs)
 
 # Create model
 
-myModel = models.Sequential()
+my_model = models.Sequential()
 
-myModel.add(layers.Dense(num_in, activation=activations.input))
-myModel.add(layers.Dense(10, activation=activations.relu))
-myModel.add(layers.Dense(1, activation=activations.sigmoid))
+my_model.add(layers.Dense(num_in, activation=activations.input))
+my_model.add(layers.Dense(10, activation=activations.relu))
+my_model.add(layers.Dense(6, activation=activations.softmax))
+my_model.add(layers.Dense(1, activation=activations.sigmoid))
 
-myModel.compile()
+my_model.compile()
+my_model.description()
 
-myModel.train(inputs, outputs, optimizer='SGD', epochs=2, learning_rate=0.001)
+my_model.train(inputs, outputs, optimizer='SGD', epochs=4, learning_rate=0.001)
 
 # Create test data
 inputs = np.random.randint(0, options + 1, size=[num_in, 100])
@@ -45,5 +47,5 @@ for i in range(0, 100):
     test_input = inputs[i]
     test_output = outputs[i]
 
-    output = myModel.forward_pass(test_input)
+    output = my_model.forward_pass(test_input)
     print(f"test_input {test_input} test_output {test_output}, output {output}")

@@ -20,7 +20,7 @@ class Connect_four_ai():
         self.Q.add(layers.Dense(6, activation=activations.softmax))
         self.Q.compile()
 
-        self.client = dql.Client(Q_1=self.Q, memory_capacity=10000, batch_size=16, params_path=params_path, memory_path=memory_path)
+        self.client = dql.Client(Q_1=self.Q, memory_capacity=10000, batch_size=8, params_path=params_path, memory_path=memory_path)
 
         self.first_iteration = True
 
@@ -45,7 +45,7 @@ class Connect_four_ai():
         """
         self.is_terminal = False
         self.client.episode += 1
-        self.client.epsilon = 1 / np.sqrt(self.client.episode * 0.0001 + 1)
+        self.client.epsilon = 1 / np.sqrt(self.client.episode * 0.007 + 1)
         if self.client.episode % 500 == 0:
             print(f'Copying network {self.client.episode}')
             self.client.Q_2 = self.client.Q_1

@@ -17,7 +17,7 @@ from pysnaike import activations, dql, layers, models
 game = Connect_four_game()
 ai = Connect_four_ai(params_path='network_params.npz', memory_path='exp_bank.npz')
 
-
+ai.client.episode = 12000
 while ai.client.episode < 1000000:
     ai.client.episode += 1
     should_break = False
@@ -56,7 +56,7 @@ while ai.client.episode < 1000000:
         prev_state = prev_states[curr_player - 1]
 
         if prev_action is not None:
-            # print(f'TRAIN Curr: {curr_player}, prev_action: {prev_action}, reward {reward}, is_terminal: {is_terminal}, should_break: {should_break}')
+            print(f'TRAIN Curr: {curr_player}, prev_action: {prev_action}, reward {reward}, is_terminal: {is_terminal}, should_break: {should_break}')
 
             ai.client.add_exp(prev_state, prev_action, reward, state, is_terminal)
             ai.client.train()
@@ -72,8 +72,8 @@ while ai.client.episode < 1000000:
             prev_states[curr_player - 1] = state
             prev_actions[curr_player - 1] = x
             ai.client.action = x
-            # game.print_game(np.array(game.grid).reshape(6,6).T)
-            # print(f'Player: {curr_player}, is_terminal: {is_terminal}, action: {x}, should_break: {should_break}')
+            game.print_game(np.array(game.grid).reshape(6,6).T)
+            print(f'Player: {curr_player}, is_terminal: {is_terminal}, action: {x}, should_break: {should_break}')
             game.place(x)
 
         if curr_player == 1:

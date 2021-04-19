@@ -5,6 +5,7 @@ import numpy as np
 import pysnaike.activations as activations
 from tqdm import tqdm
 import os.path
+from tabulate import tabulate
 
 
 class Sequential:
@@ -33,16 +34,34 @@ class Sequential:
 
         self.layers.append(layer)            
 
+    def description(self):
+        data = []
+        sum_params = 0
+        for layer in self.layers:
+            if layer.num_params: sum_params += layer.num_params
+            activation = getattr(getattr(layer, 'activation', None), '__name__', None)            
+            data.append([layer.layer_idx, layer.name, layer.output_shape, activation, layer.num_params])
+        data.append([None])
+        data.append(['Total:', None, None, None, sum_params])
+        print(tabulate(data, headers=['Idx', 'Name', 'Output shape', 'Activation', 'Num params'], tablefmt='pretty'))
+
     def compile(self):
         """Compile model architecture.
         """
+        layer_names = {}        
+        for i in range(0, len(self.layers)):
+            curr = self.layers[i]            
 
-        for i in range(1, len(self.layers)):
-            size_curr = self.layers[i].size
-            size_prev = self.layers[i - 1].size
-
-            self.params['W' + str(i)] = np.random.randn(size_curr, size_prev) * 0.1
-            self.params['B' + str(i)] = np.zeros(size_curr)
+            # Naming
+            if not curr.name in layer_names:
+                layer_names[curr.name] = 1
+            else: layer_names[curr.name] += 1
+            curr.name += f'_{str(layer_names[curr.name])}'            
+            
+            if i > 0:
+                size_curr = curr.output_shape
+                size_prev = self.layers[i - 1].output_shape
+                self.params[f'W{i}'], self.params[f'B{i}'] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
         """Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -52,6 +71,7 @@ class Sequential:
         """
 
         for key, value in new_params.items():
+            if key == 'error': continue
             self.params[key] -= self.learning_rate * value
 
 
@@ -63,6 +83,7 @@ class Sequential:
             divisor (int, required): Mini batch size.
         """
         for key, value in new_params.items():
+            if key == 'error': continue
             self.params[key] -= value / divisor    
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
@@ -166,11 +187,8 @@ class Sequential:
         params['A0'] = inputs
             
         for i in range(1, len(self.layers)):
-            # print(f"forward i: {i}, activ. {self.layers[i].activation.__name__}")
-            params['Z' + str(i)] = np.dot(params['W' + str(i)], params['A' + str(i - 1)]) + params['B' + str(i)]
-            params['A' + str(i)] = self.layers[i].activation(params['Z' + str(i)])
-
-        return params['A' + str(len(self.layers) - 1)]
+            self.layers[i].forward_pass(params)            
+        return params.get(f'A{len(self.layers) - 1}', f'No output from layer {len(self.layers) - 1}')
 
     def backward_pass(self, output, target):
         """Propagate backward through the network.
@@ -185,24 +203,18 @@ class Sequential:
             dict: Gradients for the network stored in a dictionary.
         """
 
-        params = self.params
         new_params = {}
-
-        
         last_layer = len(self.layers) - 1
+        is_last = True
+        error = None
 
-        # Calculate last layer updates        
-        error = 2 * (output - target) / output.shape[0] * self.layers[-1].activation(params['Z' + str(last_layer)], derivative=True)
-        new_params['W' + str(last_layer)] = np.outer(error, params['A' + str(last_layer - 1)])        
-        new_params['B' + str(last_layer)] = error
+        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+        for i in reversed(range(1, last_layer + 1)):            
+            error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)            
+            if is_last:
+                is_last = False
 
-        # Propagate backward and calculate other layer updates
-        for i in reversed(range(1, last_layer)):
-            error = np.dot(params['W' + str(i + 1)].T, error) * self.layers[i + 1].activation(params['Z' + str(i)], derivative=True)
-            new_params['W' + str(i)] = np.outer(error, params['A' + str(i - 1)])
-            new_params['B' + str(i)] = error
-        
-        return new_params
+        return new_params    
 
     def load_params(self, params_path):
         """Load network parameters from `params_path`.
