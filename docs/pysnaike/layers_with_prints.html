@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.9.2" />
-<title>pysnaike.layers API documentation</title>
+<title>pysnaike.layers_with_prints API documentation</title>
 <meta name="description" content="Different types of layers in a network." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,7 +19,7 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>pysnaike.layers</code></h1>
+<h1 class="title">Module <code>pysnaike.layers_with_prints</code></h1>
 </header>
 <section id="section-intro">
 <p>Different types of layers in a network.</p>
@@ -31,8 +31,9 @@
 
 
 import numpy as np
-# np.random.seed(2)
+np.random.seed(2)
 from pysnaike import activations
+import sys
 
 
 class Dense():
@@ -81,29 +82,16 @@ class Dense():
         params[f&#39;A{self.layer_idx}&#39;] = self.activation(params[f&#39;Z{self.layer_idx}&#39;])
 
     def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
-        &#34;&#34;&#34;Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
 
-        Args:
-            error: Partial derivative with respect to activations from previous layer.
-            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
-            output (optional): Output from this layer during forward pass. Defaults to None.
-            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
-            new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
-            model (optional): Reference to the `Sequential` model. Defaults to None.
-
-        Returns:
-            np.array: dL/dx. How the loss-function is affected by input changes.
-        &#34;&#34;&#34;
-
-        activation_deriv = model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
         if not is_last:
-            error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * activation_deriv
+            error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
         else:
-            error = 2 * (output - target) / output.shape[0] * activation_deriv
+            error = 2 * (output - target) / output.shape[0] * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
 
         new_params[&#39;W&#39; + str(self.layer_idx)] = np.outer(error, model.params[&#39;A&#39; + str(self.layer_idx - 1)])
         new_params[&#39;B&#39; + str(self.layer_idx)] = error
         return error
+
 
     def __str__(self) -&gt; str:
         return f&#34;&lt;Dense layer class object named &#39;{self.name}&#39; of size {self.size} using activation function &#39;{self.activation.__name__}&#39;&gt;&#34;
@@ -118,16 +106,14 @@ class Conv2D():
         Args:
             num_filters (int): Number of filters in layer.
             kernel_size ((x, y), optional): Size of kernel Both dimensions must be odd. Defaults to (3, 3).
-            input_shape ((channels, x, y), optional): Shape of input data. Defaults to (1, 5, 5).
+            input_shape ((channels, x, y), optional): Shape of input data. Defaults to (2, 5, 5).
             strides ((x, y), optional): NOT implemented. Step size when sliding across the grid. Defaults to (1, 1).
-            kernel (optional): Weights for kernel. Must have shape `(num_filters, *input_shape)`. If nothing is provided, weights will be instantiated randomly. Defaults to None.
-            padding (optional): Either &#34;same&#34; or &#34;valid&#34;. &#34;same&#34; means padding is added evenly on all sides, so that output shape equals input shape. &#34;valid&#34; is the same as no padding. Defaults to &#34;same&#34;.
+            padding (optional): Either &#34;same&#34;, &#34;valid&#34; or an integer. &#34;same&#34; means padding is added evenly on all sides, so that output shape equals input shape. &#34;valid&#34; is the same as no padding. Defaults to &#34;same&#34;.
             activation (optional): Activation function used at this layer.
             name (str, optional): Name of the layer. Defaults to &#34;conv2d&#34;.
 
         Todo:
-            Stride.
-            Check input shapes.
+            Stride
         &#34;&#34;&#34;
 
         self.num_filters = num_filters
@@ -139,7 +125,7 @@ class Conv2D():
         self.activation = activation
         self.name = name
 
-        self.layer_idx = 0  # Updated at `Sequential.compile()`
+        self.layer_idx = 0 # Changed at model compile
         self.num_params = self.calc_num_params()
         self.output_shape = self.calc_output_shape()
 
@@ -151,12 +137,12 @@ class Conv2D():
         &#34;&#34;&#34;
 
         self.layer_idx = kvargs[&#39;layer_idx&#39;]
-
+        
         w = self.kernel
         if self.kernel is None:
             w = np.random.randn(self.num_filters, self.kernel_size[0], self.kernel_size[1])
 
-        b = np.zeros(self.num_filters)
+        b = np.zeros(self.num_filters)        
         return w, b
 
     def calc_padding(self, padding):
@@ -195,82 +181,175 @@ class Conv2D():
 
 
     def forward_pass(self, params):
-        &#34;&#34;&#34;Perform forward pass through layer based on weights and biases from `params`.
+        &#34;&#34;&#34;Perform forward pass through layer based on weights and biases from `params`. 
         Model `params` is updated in place.
 
         Args:
             params (dict): Model parameters for all layers.
         &#34;&#34;&#34;
-
         w = params[f&#39;W{self.layer_idx}&#39;]
         b = params[f&#39;B{self.layer_idx}&#39;]
         prev_a = params[f&#39;A{self.layer_idx - 1}&#39;]
-
-        conv = self.convolve(prev_a, w, self.padding)
+        
+        conv = self.conv(prev_a, w, self.padding)
         params[f&#39;Z{self.layer_idx}&#39;] = (conv / np.prod(self.kernel_size)) + b[:, np.newaxis, np.newaxis]
         params[f&#39;A{self.layer_idx}&#39;] = self.activation(params[f&#39;Z{self.layer_idx}&#39;])
 
-    def convolve(self, a, b, padding, sum_out=False):
+    def conv(self, a, b, padding, sum_out=False):
         &#34;&#34;&#34;Full convolution between matrices `a` and `b`.
 
         Args:
             a: Stationary matrix.
             b: Moving matrix.
-            padding: Two numbers representing padding.
-            sum_out (bool, optional): Whether output matrix should be summed along axis 0. Defaults to False.
+            padding: Two numbers representing padding
 
         Returns:
             array: Matrix containing convoluted output.
         &#34;&#34;&#34;
-
+        print(&#34;a padd&#34;)                
         a_with_pad = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2)))
+        print(a_with_pad.shape)
+        print(a_with_pad)
+
         a_with_pad[:, padding[0] : padding[0] + a.shape[1], padding[1]:padding[1] + a.shape[2]] = a
+        print(&#39;full conv a_with_pad&#39;)
+        print(a_with_pad)
 
+        # print((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
         out = np.zeros((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
+        print(&#34;out&#34;)
+        print(out.shape)
+        print(out)
 
+        print(&#34;a matrix&#34;)
+        print(a.round(2))
+        print(&#34;b matrix&#34;)
+        print(b.round(2))
         for x in range(out.shape[1]):
             for y in range(out.shape[2]):
+                # print(f&#34;x,y: {x,y}&#34;)                
+                # print(a_with_pad.shape)
+                # print(a.shape)
+                # print(&#34;not moving&#34;)
+                # print(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]].flatten())
+                # print(&#34;moving&#34;)
+                # print(b[:].flatten())
+                # print(&#34;tensordot&#34;)
+                # print((a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]]).shape)
+                # print(b[:].shape)                
                 dot = np.tensordot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]], b, axes=([1,2], [1,2]))
+                # dot = np.dot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]].flatten(), b[:].flatten())
+                # print(&#34;dot.shape&#34;)                
+                # print(dot)
+                # print(out.shape)
+                # print(dot)
+                # print(f&#34;{x, y} full conv saving&#34;)
+                # print(out)
                 out[:,x,y] = dot
-
+                # print(out)
+        # print(&#34;Done full convolution&#34;)
+        # print(&#34;a_with_pad&#34;)
+        # print(a_with_pad)
+        # print(&#34;b&#34;)
+        # print(b)
+        # print(&#34;out&#34;)
+        # print(out)
+        print(&#34;out not summed&#34;)
+        print(out.round(2))
         if sum_out:
             out = np.sum(out, axis=0)
         return out
 
 
     def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
-        &#34;&#34;&#34;Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
-
-        Args:
-            error: Partial derivative of the final loss function with respect to activations from n+1 layer.
-            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
-            output (optional): Output from this layer during forward pass. Defaults to None.
-            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
-            new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
-            model (optional): Reference to the `Sequential` model. Defaults to None.
-
-        Returns:
-            np.array: dL/dx. How the loss-function is affected by input changes.
-        &#34;&#34;&#34;
+        print(&#39;output after activation function&#39;)
+        print(output.round(2))
+        print(&#39;target&#39;)
+        print(target.round(2))
+        print(&#39;2*(output-target)&#39;)
+        print((2*(output-target)).round(2))
+        print(f&#39;layer activation {model.layers[self.layer_idx].activation}&#39;)
+        print(&#39;Z deriv true&#39;)
+        print(model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True))
 
         if not is_last:
+            print(&#34;Not last&#34;)
+            print(error.round(2))
+            print(error.shape)
+            print(&#34;W&#34;)
             w = model.params[&#39;W&#39; + str(self.layer_idx)]
+            print(w.round(2))
+            print(&#34;180 rotate (two flips):&#34;)
             arr = np.flip(np.flip(w, -2), -1)
+            print(arr.round(2))
+            print(arr.shape)
 
             if len(arr.shape) &gt; 3:
+                print(&#34;Swap axes:&#34;)
                 arr = np.swapaxes(arr, 0,1)
+                print(arr.round(2))
+                print(arr.shape)
+            else: print(f&#34;Not swapping axes. Only {len(arr.shape)}&#34;)
 
+            print(&#34;w&#34;)
+            print(w.round(2))
+            print(&#34;padding&#34;)
             padding = np.array(error.shape[-2:]) - 1
-            error = self.convolve(arr, error, padding)
+            print(padding.round(2))
+            print(&#34;Full conv&#34;)
+
+            print(w.shape)
+            print(&#34;arr&#34;)
+            print(arr.round(2))
+            print(&#34;error&#34;)
+            print(error.shape)
+            print(error.round(2))            
+            print(&#34;padding&#34;)
+            print(padding.round(2))
+            error = self.conv(arr, error, padding)
+
+            pass
+            # error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
+
+
         else:
             error = 2 * (output - target) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
+            print(&#39;(error) dL/d omega&#39;)
+            print(error.round(2))
 
+        # new_params[&#39;W&#39; + str(self.layer_idx)] = np.outer(error, model.params[&#39;A&#39; + str(self.layer_idx - 1)])
         prev_a = model.params[&#39;A&#39; + str(self.layer_idx - 1)]
-
-        new_w = self.convolve(prev_a, error, self.padding)
+        print(&#39;prev_a&#39;)
+        print(prev_a.round(2))
+        out_shape = model.params[&#39;W&#39; + str(self.layer_idx)].shape
+        print(&#39;convolve back&#39;)
+        print(out_shape)
+        print(error.shape)
+        print(prev_a.shape)
+        print(self.padding)
+        print(&#34;done printing&#34;)
+        # print(&#34;Using full conv&#34;)
+        # print(self.conv(prev_a, error, self.padding))        
+        new_w = self.conv(prev_a, error, self.padding)
+        print(&#34;new_w&#34;)
+        print(new_w)
         new_params[&#39;W&#39; + str(self.layer_idx)] = new_w / np.prod(new_w.shape[1:]) * model.learning_rate
+        print(new_w / np.prod(new_w.shape[1:]) * model.learning_rate)
+        print(&#39;W edits&#39;)
+        print(new_params[&#39;W&#39; + str(self.layer_idx)].round(6))
+
+        print(&#34;B (error)&#34;)
+        print(error.round(2))
+        print(&#34;B&#34;)
+        print(np.sum(error, axis=(1,2)).round(2))
+        # Bias should work with this line, but it makes things worse somehow
+        # new_params[f&#39;B{self.layer_idx}&#39;] = np.sum(error, axis=(1,2)) / np.prod(error.shape[1:]) * model.learning_rate
         new_params[f&#39;B{self.layer_idx}&#39;] = np.zeros(self.num_filters)
+
+        print(f&#34;new_params[B{self.layer_idx}]&#34;)
+        print(new_params[&#39;B&#39; + str(self.layer_idx)].round(2))
         return error
+
 
     def __str__(self) -&gt; str:
         return f&#34;&lt;Conv2D layer class object named &#39;{self.name}&#39; with input shape {self.input_shape} and filter shape &#39;{self.kernel_size}&#39;&gt;&#34;
@@ -306,6 +385,9 @@ class Flatten():
         # params[f&#39;A{self.layer_idx}&#39;] = params[f&#39;A{self.layer_idx - 1}&#39;]
 
 
+
+
+
 class Reshape():
     def __init__(self, output_shape, name=&#39;reshape&#39;):
         self.name = name
@@ -334,7 +416,7 @@ class Reshape():
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="pysnaike.layers.AvgPooling2D"><code class="flex name class">
+<dt id="pysnaike.layers_with_prints.AvgPooling2D"><code class="flex name class">
 <span>class <span class="ident">AvgPooling2D</span></span>
 <span>(</span><span>pool_size)</span>
 </code></dt>
@@ -349,7 +431,7 @@ class Reshape():
         pass</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D"><code class="flex name class">
+<dt id="pysnaike.layers_with_prints.Conv2D"><code class="flex name class">
 <span>class <span class="ident">Conv2D</span></span>
 <span>(</span><span>num_filters, kernel_size=(3, 3), input_shape=(1, 5, 5), strides=(1, 1), kernel=None, padding='same', activation=&lt;function identity&gt;, name: str = 'conv2d')</span>
 </code></dt>
@@ -361,20 +443,17 @@ class Reshape():
 <dt><strong><code>num_filters</code></strong> :&ensp;<code>int</code></dt>
 <dd>Number of filters in layer.</dd>
 <dt>kernel_size ((x, y), optional): Size of kernel Both dimensions must be odd. Defaults to (3, 3).</dt>
-<dt>input_shape ((channels, x, y), optional): Shape of input data. Defaults to (1, 5, 5).</dt>
+<dt>input_shape ((channels, x, y), optional): Shape of input data. Defaults to (2, 5, 5).</dt>
 <dt>strides ((x, y), optional): NOT implemented. Step size when sliding across the grid. Defaults to (1, 1).</dt>
-<dt><strong><code>kernel</code></strong> :&ensp;<code>optional</code></dt>
-<dd>Weights for kernel. Must have shape <code>(num_filters, *input_shape)</code>. If nothing is provided, weights will be instantiated randomly. Defaults to None.</dd>
 <dt><strong><code>padding</code></strong> :&ensp;<code>optional</code></dt>
-<dd>Either "same" or "valid". "same" means padding is added evenly on all sides, so that output shape equals input shape. "valid" is the same as no padding. Defaults to "same".</dd>
+<dd>Either "same", "valid" or an integer. "same" means padding is added evenly on all sides, so that output shape equals input shape. "valid" is the same as no padding. Defaults to "same".</dd>
 <dt><strong><code>activation</code></strong> :&ensp;<code>optional</code></dt>
 <dd>Activation function used at this layer.</dd>
 <dt><strong><code>name</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>Name of the layer. Defaults to "conv2d".</dd>
 </dl>
 <h2 id="todo">Todo</h2>
-<p>Stride.
-Check input shapes.</p></div>
+<p>Stride</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -388,16 +467,14 @@ Check input shapes.</p></div>
         Args:
             num_filters (int): Number of filters in layer.
             kernel_size ((x, y), optional): Size of kernel Both dimensions must be odd. Defaults to (3, 3).
-            input_shape ((channels, x, y), optional): Shape of input data. Defaults to (1, 5, 5).
+            input_shape ((channels, x, y), optional): Shape of input data. Defaults to (2, 5, 5).
             strides ((x, y), optional): NOT implemented. Step size when sliding across the grid. Defaults to (1, 1).
-            kernel (optional): Weights for kernel. Must have shape `(num_filters, *input_shape)`. If nothing is provided, weights will be instantiated randomly. Defaults to None.
-            padding (optional): Either &#34;same&#34; or &#34;valid&#34;. &#34;same&#34; means padding is added evenly on all sides, so that output shape equals input shape. &#34;valid&#34; is the same as no padding. Defaults to &#34;same&#34;.
+            padding (optional): Either &#34;same&#34;, &#34;valid&#34; or an integer. &#34;same&#34; means padding is added evenly on all sides, so that output shape equals input shape. &#34;valid&#34; is the same as no padding. Defaults to &#34;same&#34;.
             activation (optional): Activation function used at this layer.
             name (str, optional): Name of the layer. Defaults to &#34;conv2d&#34;.
 
         Todo:
-            Stride.
-            Check input shapes.
+            Stride
         &#34;&#34;&#34;
 
         self.num_filters = num_filters
@@ -409,7 +486,7 @@ Check input shapes.</p></div>
         self.activation = activation
         self.name = name
 
-        self.layer_idx = 0  # Updated at `Sequential.compile()`
+        self.layer_idx = 0 # Changed at model compile
         self.num_params = self.calc_num_params()
         self.output_shape = self.calc_output_shape()
 
@@ -421,12 +498,12 @@ Check input shapes.</p></div>
         &#34;&#34;&#34;
 
         self.layer_idx = kvargs[&#39;layer_idx&#39;]
-
+        
         w = self.kernel
         if self.kernel is None:
             w = np.random.randn(self.num_filters, self.kernel_size[0], self.kernel_size[1])
 
-        b = np.zeros(self.num_filters)
+        b = np.zeros(self.num_filters)        
         return w, b
 
     def calc_padding(self, padding):
@@ -465,153 +542,281 @@ Check input shapes.</p></div>
 
 
     def forward_pass(self, params):
-        &#34;&#34;&#34;Perform forward pass through layer based on weights and biases from `params`.
+        &#34;&#34;&#34;Perform forward pass through layer based on weights and biases from `params`. 
         Model `params` is updated in place.
 
         Args:
             params (dict): Model parameters for all layers.
         &#34;&#34;&#34;
-
         w = params[f&#39;W{self.layer_idx}&#39;]
         b = params[f&#39;B{self.layer_idx}&#39;]
         prev_a = params[f&#39;A{self.layer_idx - 1}&#39;]
-
-        conv = self.convolve(prev_a, w, self.padding)
+        
+        conv = self.conv(prev_a, w, self.padding)
         params[f&#39;Z{self.layer_idx}&#39;] = (conv / np.prod(self.kernel_size)) + b[:, np.newaxis, np.newaxis]
         params[f&#39;A{self.layer_idx}&#39;] = self.activation(params[f&#39;Z{self.layer_idx}&#39;])
 
-    def convolve(self, a, b, padding, sum_out=False):
+    def conv(self, a, b, padding, sum_out=False):
         &#34;&#34;&#34;Full convolution between matrices `a` and `b`.
 
         Args:
             a: Stationary matrix.
             b: Moving matrix.
-            padding: Two numbers representing padding.
-            sum_out (bool, optional): Whether output matrix should be summed along axis 0. Defaults to False.
+            padding: Two numbers representing padding
 
         Returns:
             array: Matrix containing convoluted output.
         &#34;&#34;&#34;
-
+        print(&#34;a padd&#34;)                
         a_with_pad = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2)))
+        print(a_with_pad.shape)
+        print(a_with_pad)
+
         a_with_pad[:, padding[0] : padding[0] + a.shape[1], padding[1]:padding[1] + a.shape[2]] = a
+        print(&#39;full conv a_with_pad&#39;)
+        print(a_with_pad)
 
+        # print((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
         out = np.zeros((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
+        print(&#34;out&#34;)
+        print(out.shape)
+        print(out)
 
+        print(&#34;a matrix&#34;)
+        print(a.round(2))
+        print(&#34;b matrix&#34;)
+        print(b.round(2))
         for x in range(out.shape[1]):
             for y in range(out.shape[2]):
+                # print(f&#34;x,y: {x,y}&#34;)                
+                # print(a_with_pad.shape)
+                # print(a.shape)
+                # print(&#34;not moving&#34;)
+                # print(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]].flatten())
+                # print(&#34;moving&#34;)
+                # print(b[:].flatten())
+                # print(&#34;tensordot&#34;)
+                # print((a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]]).shape)
+                # print(b[:].shape)                
                 dot = np.tensordot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]], b, axes=([1,2], [1,2]))
+                # dot = np.dot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]].flatten(), b[:].flatten())
+                # print(&#34;dot.shape&#34;)                
+                # print(dot)
+                # print(out.shape)
+                # print(dot)
+                # print(f&#34;{x, y} full conv saving&#34;)
+                # print(out)
                 out[:,x,y] = dot
-
+                # print(out)
+        # print(&#34;Done full convolution&#34;)
+        # print(&#34;a_with_pad&#34;)
+        # print(a_with_pad)
+        # print(&#34;b&#34;)
+        # print(b)
+        # print(&#34;out&#34;)
+        # print(out)
+        print(&#34;out not summed&#34;)
+        print(out.round(2))
         if sum_out:
             out = np.sum(out, axis=0)
         return out
 
 
     def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
-        &#34;&#34;&#34;Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
-
-        Args:
-            error: Partial derivative of the final loss function with respect to activations from n+1 layer.
-            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
-            output (optional): Output from this layer during forward pass. Defaults to None.
-            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
-            new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
-            model (optional): Reference to the `Sequential` model. Defaults to None.
-
-        Returns:
-            np.array: dL/dx. How the loss-function is affected by input changes.
-        &#34;&#34;&#34;
+        print(&#39;output after activation function&#39;)
+        print(output.round(2))
+        print(&#39;target&#39;)
+        print(target.round(2))
+        print(&#39;2*(output-target)&#39;)
+        print((2*(output-target)).round(2))
+        print(f&#39;layer activation {model.layers[self.layer_idx].activation}&#39;)
+        print(&#39;Z deriv true&#39;)
+        print(model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True))
 
         if not is_last:
+            print(&#34;Not last&#34;)
+            print(error.round(2))
+            print(error.shape)
+            print(&#34;W&#34;)
             w = model.params[&#39;W&#39; + str(self.layer_idx)]
+            print(w.round(2))
+            print(&#34;180 rotate (two flips):&#34;)
             arr = np.flip(np.flip(w, -2), -1)
+            print(arr.round(2))
+            print(arr.shape)
 
             if len(arr.shape) &gt; 3:
+                print(&#34;Swap axes:&#34;)
                 arr = np.swapaxes(arr, 0,1)
+                print(arr.round(2))
+                print(arr.shape)
+            else: print(f&#34;Not swapping axes. Only {len(arr.shape)}&#34;)
 
+            print(&#34;w&#34;)
+            print(w.round(2))
+            print(&#34;padding&#34;)
             padding = np.array(error.shape[-2:]) - 1
-            error = self.convolve(arr, error, padding)
+            print(padding.round(2))
+            print(&#34;Full conv&#34;)
+
+            print(w.shape)
+            print(&#34;arr&#34;)
+            print(arr.round(2))
+            print(&#34;error&#34;)
+            print(error.shape)
+            print(error.round(2))            
+            print(&#34;padding&#34;)
+            print(padding.round(2))
+            error = self.conv(arr, error, padding)
+
+            pass
+            # error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
+
+
         else:
             error = 2 * (output - target) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
+            print(&#39;(error) dL/d omega&#39;)
+            print(error.round(2))
 
+        # new_params[&#39;W&#39; + str(self.layer_idx)] = np.outer(error, model.params[&#39;A&#39; + str(self.layer_idx - 1)])
         prev_a = model.params[&#39;A&#39; + str(self.layer_idx - 1)]
-
-        new_w = self.convolve(prev_a, error, self.padding)
+        print(&#39;prev_a&#39;)
+        print(prev_a.round(2))
+        out_shape = model.params[&#39;W&#39; + str(self.layer_idx)].shape
+        print(&#39;convolve back&#39;)
+        print(out_shape)
+        print(error.shape)
+        print(prev_a.shape)
+        print(self.padding)
+        print(&#34;done printing&#34;)
+        # print(&#34;Using full conv&#34;)
+        # print(self.conv(prev_a, error, self.padding))        
+        new_w = self.conv(prev_a, error, self.padding)
+        print(&#34;new_w&#34;)
+        print(new_w)
         new_params[&#39;W&#39; + str(self.layer_idx)] = new_w / np.prod(new_w.shape[1:]) * model.learning_rate
+        print(new_w / np.prod(new_w.shape[1:]) * model.learning_rate)
+        print(&#39;W edits&#39;)
+        print(new_params[&#39;W&#39; + str(self.layer_idx)].round(6))
+
+        print(&#34;B (error)&#34;)
+        print(error.round(2))
+        print(&#34;B&#34;)
+        print(np.sum(error, axis=(1,2)).round(2))
+        # Bias should work with this line, but it makes things worse somehow
+        # new_params[f&#39;B{self.layer_idx}&#39;] = np.sum(error, axis=(1,2)) / np.prod(error.shape[1:]) * model.learning_rate
         new_params[f&#39;B{self.layer_idx}&#39;] = np.zeros(self.num_filters)
+
+        print(f&#34;new_params[B{self.layer_idx}]&#34;)
+        print(new_params[&#39;B&#39; + str(self.layer_idx)].round(2))
         return error
+
 
     def __str__(self) -&gt; str:
         return f&#34;&lt;Conv2D layer class object named &#39;{self.name}&#39; with input shape {self.input_shape} and filter shape &#39;{self.kernel_size}&#39;&gt;&#34;</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="pysnaike.layers.Conv2D.backward_pass"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Conv2D.backward_pass"><code class="name flex">
 <span>def <span class="ident">backward_pass</span></span>(<span>self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Performs backpropagation by calculating weight and bias gradients and returning <code>error</code> which is dL/dx.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>error</code></strong></dt>
-<dd>Partial derivative of the final loss function with respect to activations from n+1 layer.</dd>
-<dt><strong><code>is_last</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Whether this layer is the last one in the model. Defaults to False.</dd>
-<dt><strong><code>output</code></strong> :&ensp;<code>optional</code></dt>
-<dd>Output from this layer during forward pass. Defaults to None.</dd>
-<dt><strong><code>target</code></strong> :&ensp;<code>optional</code></dt>
-<dd>The target output from the model. Only used when <code>is_last</code> is True. Defaults to None.</dd>
-<dt><strong><code>new_params</code></strong> :&ensp;<code>dict</code>, optional</dt>
-<dd>Dictionary with model gradients for weights and biases. Defaults to None.</dd>
-<dt><strong><code>model</code></strong> :&ensp;<code>optional</code></dt>
-<dd>Reference to the <code>Sequential</code> model. Defaults to None.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>np.array</code></dt>
-<dd>dL/dx. How the loss-function is affected by input changes.</dd>
-</dl></div>
+<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
-    &#34;&#34;&#34;Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
-
-    Args:
-        error: Partial derivative of the final loss function with respect to activations from n+1 layer.
-        is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
-        output (optional): Output from this layer during forward pass. Defaults to None.
-        target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
-        new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
-        model (optional): Reference to the `Sequential` model. Defaults to None.
-
-    Returns:
-        np.array: dL/dx. How the loss-function is affected by input changes.
-    &#34;&#34;&#34;
+    print(&#39;output after activation function&#39;)
+    print(output.round(2))
+    print(&#39;target&#39;)
+    print(target.round(2))
+    print(&#39;2*(output-target)&#39;)
+    print((2*(output-target)).round(2))
+    print(f&#39;layer activation {model.layers[self.layer_idx].activation}&#39;)
+    print(&#39;Z deriv true&#39;)
+    print(model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True))
 
     if not is_last:
+        print(&#34;Not last&#34;)
+        print(error.round(2))
+        print(error.shape)
+        print(&#34;W&#34;)
         w = model.params[&#39;W&#39; + str(self.layer_idx)]
+        print(w.round(2))
+        print(&#34;180 rotate (two flips):&#34;)
         arr = np.flip(np.flip(w, -2), -1)
+        print(arr.round(2))
+        print(arr.shape)
 
         if len(arr.shape) &gt; 3:
+            print(&#34;Swap axes:&#34;)
             arr = np.swapaxes(arr, 0,1)
+            print(arr.round(2))
+            print(arr.shape)
+        else: print(f&#34;Not swapping axes. Only {len(arr.shape)}&#34;)
 
+        print(&#34;w&#34;)
+        print(w.round(2))
+        print(&#34;padding&#34;)
         padding = np.array(error.shape[-2:]) - 1
-        error = self.convolve(arr, error, padding)
+        print(padding.round(2))
+        print(&#34;Full conv&#34;)
+
+        print(w.shape)
+        print(&#34;arr&#34;)
+        print(arr.round(2))
+        print(&#34;error&#34;)
+        print(error.shape)
+        print(error.round(2))            
+        print(&#34;padding&#34;)
+        print(padding.round(2))
+        error = self.conv(arr, error, padding)
+
+        pass
+        # error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
+
+
     else:
         error = 2 * (output - target) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
+        print(&#39;(error) dL/d omega&#39;)
+        print(error.round(2))
 
+    # new_params[&#39;W&#39; + str(self.layer_idx)] = np.outer(error, model.params[&#39;A&#39; + str(self.layer_idx - 1)])
     prev_a = model.params[&#39;A&#39; + str(self.layer_idx - 1)]
-
-    new_w = self.convolve(prev_a, error, self.padding)
+    print(&#39;prev_a&#39;)
+    print(prev_a.round(2))
+    out_shape = model.params[&#39;W&#39; + str(self.layer_idx)].shape
+    print(&#39;convolve back&#39;)
+    print(out_shape)
+    print(error.shape)
+    print(prev_a.shape)
+    print(self.padding)
+    print(&#34;done printing&#34;)
+    # print(&#34;Using full conv&#34;)
+    # print(self.conv(prev_a, error, self.padding))        
+    new_w = self.conv(prev_a, error, self.padding)
+    print(&#34;new_w&#34;)
+    print(new_w)
     new_params[&#39;W&#39; + str(self.layer_idx)] = new_w / np.prod(new_w.shape[1:]) * model.learning_rate
+    print(new_w / np.prod(new_w.shape[1:]) * model.learning_rate)
+    print(&#39;W edits&#39;)
+    print(new_params[&#39;W&#39; + str(self.layer_idx)].round(6))
+
+    print(&#34;B (error)&#34;)
+    print(error.round(2))
+    print(&#34;B&#34;)
+    print(np.sum(error, axis=(1,2)).round(2))
+    # Bias should work with this line, but it makes things worse somehow
+    # new_params[f&#39;B{self.layer_idx}&#39;] = np.sum(error, axis=(1,2)) / np.prod(error.shape[1:]) * model.learning_rate
     new_params[f&#39;B{self.layer_idx}&#39;] = np.zeros(self.num_filters)
+
+    print(f&#34;new_params[B{self.layer_idx}]&#34;)
+    print(new_params[&#39;B&#39; + str(self.layer_idx)].round(2))
     return error</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D.calc_num_params"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Conv2D.calc_num_params"><code class="name flex">
 <span>def <span class="ident">calc_num_params</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -640,7 +845,7 @@ Filter size prod (m x n) * num channels * num filters + bias (which is num filte
     return np.prod(self.kernel_size) * self.input_shape[0] * self.num_filters + self.num_filters</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D.calc_output_shape"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Conv2D.calc_output_shape"><code class="name flex">
 <span>def <span class="ident">calc_output_shape</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -663,7 +868,7 @@ Filter size prod (m x n) * num channels * num filters + bias (which is num filte
     return np.append(self.num_filters, [(self.input_shape[1:] + self.padding * 2 - self.kernel_size) // self.strides + 1])</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D.calc_padding"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Conv2D.calc_padding"><code class="name flex">
 <span>def <span class="ident">calc_padding</span></span>(<span>self, padding)</span>
 </code></dt>
 <dd>
@@ -697,8 +902,8 @@ Filter size prod (m x n) * num channels * num filters + bias (which is num filte
     return pad</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D.convolve"><code class="name flex">
-<span>def <span class="ident">convolve</span></span>(<span>self, a, b, padding, sum_out=False)</span>
+<dt id="pysnaike.layers_with_prints.Conv2D.conv"><code class="name flex">
+<span>def <span class="ident">conv</span></span>(<span>self, a, b, padding, sum_out=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Full convolution between matrices <code>a</code> and <code>b</code>.</p>
@@ -709,9 +914,7 @@ Filter size prod (m x n) * num channels * num filters + bias (which is num filte
 <dt><strong><code>b</code></strong></dt>
 <dd>Moving matrix.</dd>
 <dt><strong><code>padding</code></strong></dt>
-<dd>Two numbers representing padding.</dd>
-<dt><strong><code>sum_out</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Whether output matrix should be summed along axis 0. Defaults to False.</dd>
+<dd>Two numbers representing padding</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -722,35 +925,73 @@ Filter size prod (m x n) * num channels * num filters + bias (which is num filte
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def convolve(self, a, b, padding, sum_out=False):
+<pre><code class="python">def conv(self, a, b, padding, sum_out=False):
     &#34;&#34;&#34;Full convolution between matrices `a` and `b`.
 
     Args:
         a: Stationary matrix.
         b: Moving matrix.
-        padding: Two numbers representing padding.
-        sum_out (bool, optional): Whether output matrix should be summed along axis 0. Defaults to False.
+        padding: Two numbers representing padding
 
     Returns:
         array: Matrix containing convoluted output.
     &#34;&#34;&#34;
-
+    print(&#34;a padd&#34;)                
     a_with_pad = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2)))
+    print(a_with_pad.shape)
+    print(a_with_pad)
+
     a_with_pad[:, padding[0] : padding[0] + a.shape[1], padding[1]:padding[1] + a.shape[2]] = a
+    print(&#39;full conv a_with_pad&#39;)
+    print(a_with_pad)
 
+    # print((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
     out = np.zeros((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
+    print(&#34;out&#34;)
+    print(out.shape)
+    print(out)
 
+    print(&#34;a matrix&#34;)
+    print(a.round(2))
+    print(&#34;b matrix&#34;)
+    print(b.round(2))
     for x in range(out.shape[1]):
         for y in range(out.shape[2]):
+            # print(f&#34;x,y: {x,y}&#34;)                
+            # print(a_with_pad.shape)
+            # print(a.shape)
+            # print(&#34;not moving&#34;)
+            # print(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]].flatten())
+            # print(&#34;moving&#34;)
+            # print(b[:].flatten())
+            # print(&#34;tensordot&#34;)
+            # print((a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]]).shape)
+            # print(b[:].shape)                
             dot = np.tensordot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]], b, axes=([1,2], [1,2]))
+            # dot = np.dot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]].flatten(), b[:].flatten())
+            # print(&#34;dot.shape&#34;)                
+            # print(dot)
+            # print(out.shape)
+            # print(dot)
+            # print(f&#34;{x, y} full conv saving&#34;)
+            # print(out)
             out[:,x,y] = dot
-
+            # print(out)
+    # print(&#34;Done full convolution&#34;)
+    # print(&#34;a_with_pad&#34;)
+    # print(a_with_pad)
+    # print(&#34;b&#34;)
+    # print(b)
+    # print(&#34;out&#34;)
+    # print(out)
+    print(&#34;out not summed&#34;)
+    print(out.round(2))
     if sum_out:
         out = np.sum(out, axis=0)
     return out</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D.forward_pass"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Conv2D.forward_pass"><code class="name flex">
 <span>def <span class="ident">forward_pass</span></span>(<span>self, params)</span>
 </code></dt>
 <dd>
@@ -766,23 +1007,22 @@ Model <code>params</code> is updated in place.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def forward_pass(self, params):
-    &#34;&#34;&#34;Perform forward pass through layer based on weights and biases from `params`.
+    &#34;&#34;&#34;Perform forward pass through layer based on weights and biases from `params`. 
     Model `params` is updated in place.
 
     Args:
         params (dict): Model parameters for all layers.
     &#34;&#34;&#34;
-
     w = params[f&#39;W{self.layer_idx}&#39;]
     b = params[f&#39;B{self.layer_idx}&#39;]
     prev_a = params[f&#39;A{self.layer_idx - 1}&#39;]
-
-    conv = self.convolve(prev_a, w, self.padding)
+    
+    conv = self.conv(prev_a, w, self.padding)
     params[f&#39;Z{self.layer_idx}&#39;] = (conv / np.prod(self.kernel_size)) + b[:, np.newaxis, np.newaxis]
     params[f&#39;A{self.layer_idx}&#39;] = self.activation(params[f&#39;Z{self.layer_idx}&#39;])</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Conv2D.setup"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Conv2D.setup"><code class="name flex">
 <span>def <span class="ident">setup</span></span>(<span>self, **kvargs)</span>
 </code></dt>
 <dd>
@@ -804,18 +1044,18 @@ Model <code>params</code> is updated in place.</p>
     &#34;&#34;&#34;
 
     self.layer_idx = kvargs[&#39;layer_idx&#39;]
-
+    
     w = self.kernel
     if self.kernel is None:
         w = np.random.randn(self.num_filters, self.kernel_size[0], self.kernel_size[1])
 
-    b = np.zeros(self.num_filters)
+    b = np.zeros(self.num_filters)        
     return w, b</code></pre>
 </details>
 </dd>
 </dl>
 </dd>
-<dt id="pysnaike.layers.Dense"><code class="flex name class">
+<dt id="pysnaike.layers_with_prints.Dense"><code class="flex name class">
 <span>class <span class="ident">Dense</span></span>
 <span>(</span><span>size: int, name: str = 'dense', activation=&lt;function leaky_relu&gt;)</span>
 </code></dt>
@@ -880,91 +1120,44 @@ Model <code>params</code> is updated in place.</p>
         params[f&#39;A{self.layer_idx}&#39;] = self.activation(params[f&#39;Z{self.layer_idx}&#39;])
 
     def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
-        &#34;&#34;&#34;Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
 
-        Args:
-            error: Partial derivative with respect to activations from previous layer.
-            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
-            output (optional): Output from this layer during forward pass. Defaults to None.
-            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
-            new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
-            model (optional): Reference to the `Sequential` model. Defaults to None.
-
-        Returns:
-            np.array: dL/dx. How the loss-function is affected by input changes.
-        &#34;&#34;&#34;
-
-        activation_deriv = model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
         if not is_last:
-            error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * activation_deriv
+            error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
         else:
-            error = 2 * (output - target) / output.shape[0] * activation_deriv
+            error = 2 * (output - target) / output.shape[0] * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
 
         new_params[&#39;W&#39; + str(self.layer_idx)] = np.outer(error, model.params[&#39;A&#39; + str(self.layer_idx - 1)])
         new_params[&#39;B&#39; + str(self.layer_idx)] = error
         return error
+
 
     def __str__(self) -&gt; str:
         return f&#34;&lt;Dense layer class object named &#39;{self.name}&#39; of size {self.size} using activation function &#39;{self.activation.__name__}&#39;&gt;&#34;</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="pysnaike.layers.Dense.backward_pass"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Dense.backward_pass"><code class="name flex">
 <span>def <span class="ident">backward_pass</span></span>(<span>self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Performs backpropagation by calculating weight and bias gradients and returning <code>error</code> which is dL/dx.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>error</code></strong></dt>
-<dd>Partial derivative with respect to activations from previous layer.</dd>
-<dt><strong><code>is_last</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Whether this layer is the last one in the model. Defaults to False.</dd>
-<dt><strong><code>output</code></strong> :&ensp;<code>optional</code></dt>
-<dd>Output from this layer during forward pass. Defaults to None.</dd>
-<dt><strong><code>target</code></strong> :&ensp;<code>optional</code></dt>
-<dd>The target output from the model. Only used when <code>is_last</code> is True. Defaults to None.</dd>
-<dt><strong><code>new_params</code></strong> :&ensp;<code>dict</code>, optional</dt>
-<dd>Dictionary with model gradients for weights and biases. Defaults to None.</dd>
-<dt><strong><code>model</code></strong> :&ensp;<code>optional</code></dt>
-<dd>Reference to the <code>Sequential</code> model. Defaults to None.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>np.array</code></dt>
-<dd>dL/dx. How the loss-function is affected by input changes.</dd>
-</dl></div>
+<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
-    &#34;&#34;&#34;Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
 
-    Args:
-        error: Partial derivative with respect to activations from previous layer.
-        is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
-        output (optional): Output from this layer during forward pass. Defaults to None.
-        target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
-        new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
-        model (optional): Reference to the `Sequential` model. Defaults to None.
-
-    Returns:
-        np.array: dL/dx. How the loss-function is affected by input changes.
-    &#34;&#34;&#34;
-
-    activation_deriv = model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
     if not is_last:
-        error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * activation_deriv
+        error = np.dot(model.params[&#39;W&#39; + str(self.layer_idx + 1)].T, error) * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
     else:
-        error = 2 * (output - target) / output.shape[0] * activation_deriv
+        error = 2 * (output - target) / output.shape[0] * model.layers[self.layer_idx].activation(model.params[&#39;Z&#39; + str(self.layer_idx)], derivative=True)
 
     new_params[&#39;W&#39; + str(self.layer_idx)] = np.outer(error, model.params[&#39;A&#39; + str(self.layer_idx - 1)])
     new_params[&#39;B&#39; + str(self.layer_idx)] = error
     return error</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Dense.forward_pass"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Dense.forward_pass"><code class="name flex">
 <span>def <span class="ident">forward_pass</span></span>(<span>self, params)</span>
 </code></dt>
 <dd>
@@ -993,7 +1186,7 @@ Model <code>params</code> is updated in place.</p>
     params[f&#39;A{self.layer_idx}&#39;] = self.activation(params[f&#39;Z{self.layer_idx}&#39;])</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Dense.setup"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Dense.setup"><code class="name flex">
 <span>def <span class="ident">setup</span></span>(<span>self, **kvargs)</span>
 </code></dt>
 <dd>
@@ -1019,7 +1212,7 @@ Model <code>params</code> is updated in place.</p>
 </dd>
 </dl>
 </dd>
-<dt id="pysnaike.layers.Flatten"><code class="flex name class">
+<dt id="pysnaike.layers_with_prints.Flatten"><code class="flex name class">
 <span>class <span class="ident">Flatten</span></span>
 <span>(</span><span>name='flatten')</span>
 </code></dt>
@@ -1048,7 +1241,7 @@ Model <code>params</code> is updated in place.</p>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="pysnaike.layers.Flatten.forward_pass"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Flatten.forward_pass"><code class="name flex">
 <span>def <span class="ident">forward_pass</span></span>(<span>self, params)</span>
 </code></dt>
 <dd>
@@ -1061,7 +1254,7 @@ Model <code>params</code> is updated in place.</p>
     pass</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Flatten.setup"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Flatten.setup"><code class="name flex">
 <span>def <span class="ident">setup</span></span>(<span>self, **kvargs)</span>
 </code></dt>
 <dd>
@@ -1081,7 +1274,7 @@ Model <code>params</code> is updated in place.</p>
 </dd>
 </dl>
 </dd>
-<dt id="pysnaike.layers.MaxPooling2D"><code class="flex name class">
+<dt id="pysnaike.layers_with_prints.MaxPooling2D"><code class="flex name class">
 <span>class <span class="ident">MaxPooling2D</span></span>
 <span>(</span><span>pool_size)</span>
 </code></dt>
@@ -1096,7 +1289,7 @@ Model <code>params</code> is updated in place.</p>
         pass</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Reshape"><code class="flex name class">
+<dt id="pysnaike.layers_with_prints.Reshape"><code class="flex name class">
 <span>class <span class="ident">Reshape</span></span>
 <span>(</span><span>output_shape, name='reshape')</span>
 </code></dt>
@@ -1126,7 +1319,7 @@ Model <code>params</code> is updated in place.</p>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="pysnaike.layers.Reshape.forward_pass"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Reshape.forward_pass"><code class="name flex">
 <span>def <span class="ident">forward_pass</span></span>(<span>self, params)</span>
 </code></dt>
 <dd>
@@ -1140,7 +1333,7 @@ Model <code>params</code> is updated in place.</p>
     params[f&#39;A{self.layer_idx}&#39;] = None</code></pre>
 </details>
 </dd>
-<dt id="pysnaike.layers.Reshape.setup"><code class="name flex">
+<dt id="pysnaike.layers_with_prints.Reshape.setup"><code class="name flex">
 <span>def <span class="ident">setup</span></span>(<span>self, **kvargs)</span>
 </code></dt>
 <dd>
@@ -1175,43 +1368,43 @@ Model <code>params</code> is updated in place.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="pysnaike.layers.AvgPooling2D" href="#pysnaike.layers.AvgPooling2D">AvgPooling2D</a></code></h4>
+<h4><code><a title="pysnaike.layers_with_prints.AvgPooling2D" href="#pysnaike.layers_with_prints.AvgPooling2D">AvgPooling2D</a></code></h4>
 </li>
 <li>
-<h4><code><a title="pysnaike.layers.Conv2D" href="#pysnaike.layers.Conv2D">Conv2D</a></code></h4>
+<h4><code><a title="pysnaike.layers_with_prints.Conv2D" href="#pysnaike.layers_with_prints.Conv2D">Conv2D</a></code></h4>
 <ul class="two-column">
-<li><code><a title="pysnaike.layers.Conv2D.backward_pass" href="#pysnaike.layers.Conv2D.backward_pass">backward_pass</a></code></li>
-<li><code><a title="pysnaike.layers.Conv2D.calc_num_params" href="#pysnaike.layers.Conv2D.calc_num_params">calc_num_params</a></code></li>
-<li><code><a title="pysnaike.layers.Conv2D.calc_output_shape" href="#pysnaike.layers.Conv2D.calc_output_shape">calc_output_shape</a></code></li>
-<li><code><a title="pysnaike.layers.Conv2D.calc_padding" href="#pysnaike.layers.Conv2D.calc_padding">calc_padding</a></code></li>
-<li><code><a title="pysnaike.layers.Conv2D.convolve" href="#pysnaike.layers.Conv2D.convolve">convolve</a></code></li>
-<li><code><a title="pysnaike.layers.Conv2D.forward_pass" href="#pysnaike.layers.Conv2D.forward_pass">forward_pass</a></code></li>
-<li><code><a title="pysnaike.layers.Conv2D.setup" href="#pysnaike.layers.Conv2D.setup">setup</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.backward_pass" href="#pysnaike.layers_with_prints.Conv2D.backward_pass">backward_pass</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.calc_num_params" href="#pysnaike.layers_with_prints.Conv2D.calc_num_params">calc_num_params</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.calc_output_shape" href="#pysnaike.layers_with_prints.Conv2D.calc_output_shape">calc_output_shape</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.calc_padding" href="#pysnaike.layers_with_prints.Conv2D.calc_padding">calc_padding</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.conv" href="#pysnaike.layers_with_prints.Conv2D.conv">conv</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.forward_pass" href="#pysnaike.layers_with_prints.Conv2D.forward_pass">forward_pass</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Conv2D.setup" href="#pysnaike.layers_with_prints.Conv2D.setup">setup</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="pysnaike.layers.Dense" href="#pysnaike.layers.Dense">Dense</a></code></h4>
+<h4><code><a title="pysnaike.layers_with_prints.Dense" href="#pysnaike.layers_with_prints.Dense">Dense</a></code></h4>
 <ul class="">
-<li><code><a title="pysnaike.layers.Dense.backward_pass" href="#pysnaike.layers.Dense.backward_pass">backward_pass</a></code></li>
-<li><code><a title="pysnaike.layers.Dense.forward_pass" href="#pysnaike.layers.Dense.forward_pass">forward_pass</a></code></li>
-<li><code><a title="pysnaike.layers.Dense.setup" href="#pysnaike.layers.Dense.setup">setup</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Dense.backward_pass" href="#pysnaike.layers_with_prints.Dense.backward_pass">backward_pass</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Dense.forward_pass" href="#pysnaike.layers_with_prints.Dense.forward_pass">forward_pass</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Dense.setup" href="#pysnaike.layers_with_prints.Dense.setup">setup</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="pysnaike.layers.Flatten" href="#pysnaike.layers.Flatten">Flatten</a></code></h4>
+<h4><code><a title="pysnaike.layers_with_prints.Flatten" href="#pysnaike.layers_with_prints.Flatten">Flatten</a></code></h4>
 <ul class="">
-<li><code><a title="pysnaike.layers.Flatten.forward_pass" href="#pysnaike.layers.Flatten.forward_pass">forward_pass</a></code></li>
-<li><code><a title="pysnaike.layers.Flatten.setup" href="#pysnaike.layers.Flatten.setup">setup</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Flatten.forward_pass" href="#pysnaike.layers_with_prints.Flatten.forward_pass">forward_pass</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Flatten.setup" href="#pysnaike.layers_with_prints.Flatten.setup">setup</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="pysnaike.layers.MaxPooling2D" href="#pysnaike.layers.MaxPooling2D">MaxPooling2D</a></code></h4>
+<h4><code><a title="pysnaike.layers_with_prints.MaxPooling2D" href="#pysnaike.layers_with_prints.MaxPooling2D">MaxPooling2D</a></code></h4>
 </li>
 <li>
-<h4><code><a title="pysnaike.layers.Reshape" href="#pysnaike.layers.Reshape">Reshape</a></code></h4>
+<h4><code><a title="pysnaike.layers_with_prints.Reshape" href="#pysnaike.layers_with_prints.Reshape">Reshape</a></code></h4>
 <ul class="">
-<li><code><a title="pysnaike.layers.Reshape.forward_pass" href="#pysnaike.layers.Reshape.forward_pass">forward_pass</a></code></li>
-<li><code><a title="pysnaike.layers.Reshape.setup" href="#pysnaike.layers.Reshape.setup">setup</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Reshape.forward_pass" href="#pysnaike.layers_with_prints.Reshape.forward_pass">forward_pass</a></code></li>
+<li><code><a title="pysnaike.layers_with_prints.Reshape.setup" href="#pysnaike.layers_with_prints.Reshape.setup">setup</a></code></li>
 </ul>
 </li>
 </ul>

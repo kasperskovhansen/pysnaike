@@ -44,9 +44,10 @@ def softmax(x, derivative=False):
     &#34;&#34;&#34;
 
     exps = np.exp(x - x.max())
+    temp = exps / np.sum(exps, axis=0)
     if derivative:
-        return exps / np.sum(exps, axis=0) * (1 - exps / np.sum(exps, axis=0))
-    return exps / np.sum(exps, axis=0)
+        return temp * (1 - temp)
+    return temp
 
 
 def identity(x, derivative=False):
@@ -57,7 +58,7 @@ def identity(x, derivative=False):
         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
     &#34;&#34;&#34;
 
-    if derivative: return x * 0 + 1
+    if derivative: return 1
     else: return x
 
 
@@ -71,8 +72,9 @@ def input(x, derivative=False):
 
     return x
 
+# _sigmoid_not_vect
 
-def _sigmoid_not_vect(x, derivative=False):
+def sigmoid(x, derivative=False):
     &#34;&#34;&#34;Non vectorized sigmoid activation function.
     
     The values are treated separately and will have a value between 0 and 1.
@@ -85,7 +87,7 @@ def _sigmoid_not_vect(x, derivative=False):
         return (np.exp(-x))/((np.exp(-x)+1)**2)
     return 1/(1+np.exp(-x))
 
-
+# _relu_not_vect
 def _relu_not_vect(x, derivative=False):
     &#34;&#34;&#34;Non vectorized ReLU activation function.
 
@@ -101,10 +103,28 @@ def _relu_not_vect(x, derivative=False):
     else:
         return 0
 
+def _leaky_relu_not_vect(x, derivative=False):
+    &#34;&#34;&#34;Non vectorized LeakyReLU activation function.
+
+    Args:
+        x (list): Vector with input values.
+        derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
+    &#34;&#34;&#34;
+    a = 0.02
+    if x &gt; 0:
+        if derivative:
+            return 1
+        else: return x
+    else:
+        if derivative:
+            return a
+        else: return a*x
+
 
 # Vectorize activation functions
 __relu = np.vectorize(_relu_not_vect)
-__sigmoid = np.vectorize(_sigmoid_not_vect)
+__leaky_relu = np.vectorize(_leaky_relu_not_vect)
+# __sigmoid = np.vectorize(_sigmoid_not_vect)
 
 
 def relu(x, derivative=False):
@@ -117,16 +137,26 @@ def relu(x, derivative=False):
 
     return __relu(x, derivative=derivative)
 
-
-def sigmoid(x, derivative=False):
-    &#34;&#34;&#34;Vectorized sigmoid activation function.
+def leaky_relu(x, derivative=False):
+    &#34;&#34;&#34;Vectorized ReLU activation function.
 
     Args:
         x (list): Vector with input values.
         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
     &#34;&#34;&#34;
 
-    return __sigmoid(x, derivative=derivative)</code></pre>
+    return __leaky_relu(x, derivative=derivative)
+
+
+# def sigmoid(x, derivative=False):
+#     &#34;&#34;&#34;Vectorized sigmoid activation function.
+
+#     Args:
+#         x (list): Vector with input values.
+#         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
+#     &#34;&#34;&#34;
+
+#     return __sigmoid(x, derivative=derivative)</code></pre>
 </details>
 </section>
 <section>
@@ -160,7 +190,7 @@ def sigmoid(x, derivative=False):
         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
     &#34;&#34;&#34;
 
-    if derivative: return x * 0 + 1
+    if derivative: return 1
     else: return x</code></pre>
 </details>
 </dd>
@@ -189,6 +219,33 @@ def sigmoid(x, derivative=False):
     &#34;&#34;&#34;
 
     return x</code></pre>
+</details>
+</dd>
+<dt id="pysnaike.activations.leaky_relu"><code class="name flex">
+<span>def <span class="ident">leaky_relu</span></span>(<span>x, derivative=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Vectorized ReLU activation function.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>x</code></strong> :&ensp;<code>list</code></dt>
+<dd>Vector with input values.</dd>
+<dt><strong><code>derivative</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether the derivative should be returned instead. Defaults to False.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def leaky_relu(x, derivative=False):
+    &#34;&#34;&#34;Vectorized ReLU activation function.
+
+    Args:
+        x (list): Vector with input values.
+        derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
+    &#34;&#34;&#34;
+
+    return __leaky_relu(x, derivative=derivative)</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.activations.relu"><code class="name flex">
@@ -222,7 +279,8 @@ def sigmoid(x, derivative=False):
 <span>def <span class="ident">sigmoid</span></span>(<span>x, derivative=False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Vectorized sigmoid activation function.</p>
+<div class="desc"><p>Non vectorized sigmoid activation function.</p>
+<p>The values are treated separately and will have a value between 0 and 1.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>x</code></strong> :&ensp;<code>list</code></dt>
@@ -235,14 +293,17 @@ def sigmoid(x, derivative=False):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def sigmoid(x, derivative=False):
-    &#34;&#34;&#34;Vectorized sigmoid activation function.
+    &#34;&#34;&#34;Non vectorized sigmoid activation function.
+    
+    The values are treated separately and will have a value between 0 and 1.
 
     Args:
         x (list): Vector with input values.
         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
     &#34;&#34;&#34;
-
-    return __sigmoid(x, derivative=derivative)</code></pre>
+    if derivative:
+        return (np.exp(-x))/((np.exp(-x)+1)**2)
+    return 1/(1+np.exp(-x))</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.activations.softmax"><code class="name flex">
@@ -269,9 +330,10 @@ derivative (bool): Whether the derivative should be returned instead. Defaults t
     &#34;&#34;&#34;
 
     exps = np.exp(x - x.max())
+    temp = exps / np.sum(exps, axis=0)
     if derivative:
-        return exps / np.sum(exps, axis=0) * (1 - exps / np.sum(exps, axis=0))
-    return exps / np.sum(exps, axis=0)</code></pre>
+        return temp * (1 - temp)
+    return temp</code></pre>
 </details>
 </dd>
 </dl>
@@ -291,9 +353,10 @@ derivative (bool): Whether the derivative should be returned instead. Defaults t
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="pysnaike.activations.identity" href="#pysnaike.activations.identity">identity</a></code></li>
 <li><code><a title="pysnaike.activations.input" href="#pysnaike.activations.input">input</a></code></li>
+<li><code><a title="pysnaike.activations.leaky_relu" href="#pysnaike.activations.leaky_relu">leaky_relu</a></code></li>
 <li><code><a title="pysnaike.activations.relu" href="#pysnaike.activations.relu">relu</a></code></li>
 <li><code><a title="pysnaike.activations.sigmoid" href="#pysnaike.activations.sigmoid">sigmoid</a></code></li>
 <li><code><a title="pysnaike.activations.softmax" href="#pysnaike.activations.softmax">softmax</a></code></li>

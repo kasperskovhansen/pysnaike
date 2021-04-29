@@ -33,22 +33,24 @@
 import numpy as np
 import pysnaike.activations as activations
 from tqdm import tqdm
+import os.path
+from tabulate import tabulate
 
 
 class Sequential:
     &#34;&#34;&#34;Deep Neural Network made of stacked layers.
 
     Attributes:
-        layers (list): List of layers in the model.        
+        layers (list): List of layers in the model.
         params (dict): Model parameters.
         learning_rate (float): Size of learning steps.
 
-    Todo:        
+    Todo:
         Add checkpoint callback support.
     &#34;&#34;&#34;
 
     def __init__(self) -&gt; None:
-        self.layers = []        
+        self.layers = []
         self.params = {}
         self.learning_rate = 0.001
 
@@ -59,18 +61,41 @@ class Sequential:
             layer: The layer to add.
         &#34;&#34;&#34;
 
-        self.layers.append(layer)            
+        self.layers.append(layer)
+
+    def description(self):
+        &#34;&#34;&#34;Print a table containing information about the layers in the model.
+        &#34;&#34;&#34;
+
+        data = []
+        sum_params = 0
+        for layer in self.layers:
+            if layer.num_params: sum_params += layer.num_params
+            activation = getattr(getattr(layer, &#39;activation&#39;, None), &#39;__name__&#39;, None)
+            data.append([layer.layer_idx, layer.name, layer.output_shape, activation, layer.num_params])
+        data.append([None])
+        data.append([&#39;Total:&#39;, None, None, None, sum_params])
+        print(tabulate(data, headers=[&#39;Idx&#39;, &#39;Name&#39;, &#39;Output shape&#39;, &#39;Activation&#39;, &#39;Num params&#39;], tablefmt=&#39;pretty&#39;))
 
     def compile(self):
         &#34;&#34;&#34;Compile model architecture.
         &#34;&#34;&#34;
 
-        for i in range(1, len(self.layers)):
-            size_curr = self.layers[i].size
-            size_prev = self.layers[i - 1].size
+        layer_names = {}
+        for i in range(0, len(self.layers)):
+            curr = self.layers[i]
 
-            self.params[&#39;W&#39; + str(i)] = np.random.randn(size_curr, size_prev) * 0.1
-            self.params[&#39;B&#39; + str(i)] = np.zeros(size_curr)
+            # Naming layers
+            if not curr.name in layer_names:
+                layer_names[curr.name] = 1
+            else: layer_names[curr.name] += 1
+            curr.name += f&#39;_{str(layer_names[curr.name])}&#39;
+
+            # Setup layers based on surrounding layers
+            if i &gt; 0:
+                size_curr = curr.output_shape
+                size_prev = self.layers[i - 1].output_shape
+                self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
         &#34;&#34;&#34;Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -80,6 +105,7 @@ class Sequential:
         &#34;&#34;&#34;
 
         for key, value in new_params.items():
+            if key == &#39;error&#39;: continue
             self.params[key] -= self.learning_rate * value
 
 
@@ -91,7 +117,8 @@ class Sequential:
             divisor (int, required): Mini batch size.
         &#34;&#34;&#34;
         for key, value in new_params.items():
-            self.params[key] -= value / divisor    
+            if key == &#39;error&#39;: continue
+            self.params[key] -= value / divisor
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
         &#34;&#34;&#34;Split dataset into a number of batches with size `batch_size`.
@@ -110,16 +137,16 @@ class Sequential:
 
         indices = np.arange(inputs.shape[0])
         if shuffle: np.random.shuffle(indices)
-        
+
         mod = indices.shape[0] % batch_size
         if not mod == 0: indices = indices[0: - int(indices.shape[0] % batch_size)]
-        
+
         for start_idx in range(0, indices.shape[0] - batch_size + 1, batch_size):
             end_idx = start_idx + batch_size
-            if shuffle: 
+            if shuffle:
                 excerpt = indices[start_idx : end_idx]
             else:
-                excerpt = slice(start_idx, end_idx)                            
+                excerpt = slice(start_idx, end_idx)
             yield [inputs[excerpt], outputs[excerpt]]
 
     def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
@@ -133,37 +160,37 @@ class Sequential:
             learning_rate (float, optional): Size of steps used in backpropagation. Defaults to 0.001.
             mini_b_size (int, optional): Size of each mini batch. Defaults to 16.
             mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
-        &#34;&#34;&#34;        
+        &#34;&#34;&#34;
 
         assert inputs.shape[0] == outputs.shape[0]
-                
+
         self.learning_rate = learning_rate
 
-        for epoch in tqdm(range(epochs)):            
+        for epoch in tqdm(range(epochs)):
             if optimizer.upper() == &#39;SGD&#39;:
                 mini_b_size = 1
             elif optimizer.upper() == &#39;BATCH&#39;:
                 mini_b_size = inputs.shape[0]
-            
+
             mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
             for mini_batch in mini_batches:
                 batch_x, batch_y = mini_batch
                 avg_new_weights = {}
-                
+
                 for x, y in zip(batch_x, batch_y):
-                    output = self.forward_pass(x)                    
-                    new_weights = self.backward_pass(output, y)   
+                    output = self.forward_pass(x)
+                    new_weights = self.backward_pass(output, y)
 
                     if not avg_new_weights: avg_new_weights = new_weights
-                    else: 
+                    else:
                         for key, value in new_weights.items():
                             avg_new_weights[key] -= learning_rate * value
                 self.mini_b_update_network_params(new_weights, batch_x.shape[0])
 
     def compute_accuracy(self, inputs, outputs):
-        &#34;&#34;&#34;Test the network accuracy by comparing the network output with 
-        correct labels for a number of unknown test examples.                         
+        &#34;&#34;&#34;Test the network accuracy by comparing the network output with
+        correct labels for a number of unknown test examples.
 
         Args:
             inputs (list, required): List of input vectors.
@@ -182,23 +209,21 @@ class Sequential:
 
     def forward_pass(self, inputs):
         &#34;&#34;&#34;Calculate the output from the network for a given set of input values.
-        
+
         Args:
-            inputs (required): Input values for the network.    
+            inputs (required): Input values for the network.
 
         Returns:
-            list: The output values from the network.        
+            list: The output values from the network.
         &#34;&#34;&#34;
 
         params = self.params
         params[&#39;A0&#39;] = inputs
-            
-        for i in range(1, len(self.layers)):
-            # print(f&#34;forward i: {i}, activ. {self.layers[i].activation.__name__}&#34;)
-            params[&#39;Z&#39; + str(i)] = np.dot(params[&#39;W&#39; + str(i)], params[&#39;A&#39; + str(i - 1)]) + params[&#39;B&#39; + str(i)]
-            params[&#39;A&#39; + str(i)] = self.layers[i].activation(params[&#39;Z&#39; + str(i)])
 
-        return params[&#39;A&#39; + str(len(self.layers) - 1)]
+        for i in range(1, len(self.layers)):
+            self.layers[i].forward_pass(params)
+
+        return params.get(f&#39;A{len(self.layers) - 1}&#39;, f&#39;No output from layer {len(self.layers) - 1}&#39;)
 
     def backward_pass(self, output, target):
         &#34;&#34;&#34;Propagate backward through the network.
@@ -213,24 +238,30 @@ class Sequential:
             dict: Gradients for the network stored in a dictionary.
         &#34;&#34;&#34;
 
-        params = self.params
         new_params = {}
-
-        
         last_layer = len(self.layers) - 1
+        is_last = True
+        error = None
 
-        # Calculate last layer updates
-        error = 2 * (output - target) / output.shape[0] * self.layers[-1].activation(params[&#39;Z&#39; + str(last_layer)], derivative=True)
-        new_params[&#39;W&#39; + str(last_layer)] = np.outer(error, params[&#39;A&#39; + str(last_layer - 1)])        
-        new_params[&#39;B&#39; + str(last_layer)] = error
+        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+        for i in reversed(range(1, last_layer + 1)):
+            error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+            if is_last:
+                is_last = False
 
-        # Propagate backward and calculate other layer updates
-        for i in reversed(range(1, last_layer)):
-            error = np.dot(params[&#39;W&#39; + str(i + 1)].T, error) * self.layers[i + 1].activation(params[&#39;Z&#39; + str(i)], derivative=True)
-            new_params[&#39;W&#39; + str(i)] = np.outer(error, params[&#39;A&#39; + str(i - 1)])
-            new_params[&#39;B&#39; + str(i)] = error
-        
         return new_params
+
+    def load_params(self, params_path):
+        &#34;&#34;&#34;Load network parameters from `params_path`.
+
+        Args:
+            params_path (str): Path to .npz file.
+        &#34;&#34;&#34;
+        # Load trained network from .npz file
+        if os.path.exists(params_path):
+            params = np.load(params_path)
+            for key in params.files:
+                self.params[key] = params[key]
 
     def __str__(self) -&gt; str:
         return f&#34;&lt;Sequential model class object&gt;&#34;</code></pre>
@@ -253,16 +284,14 @@ class Sequential:
 <h2 id="attributes">Attributes</h2>
 <dl>
 <dt><strong><code>layers</code></strong> :&ensp;<code>list</code></dt>
-<dd>List of layers in the model.
-</dd>
+<dd>List of layers in the model.</dd>
 <dt><strong><code>params</code></strong> :&ensp;<code>dict</code></dt>
 <dd>Model parameters.</dd>
 <dt><strong><code>learning_rate</code></strong> :&ensp;<code>float</code></dt>
 <dd>Size of learning steps.</dd>
 </dl>
-<p>Todo:
-<br>
-Add checkpoint callback support.</p></div>
+<h2 id="todo">Todo</h2>
+<p>Add checkpoint callback support.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -271,16 +300,16 @@ Add checkpoint callback support.</p></div>
     &#34;&#34;&#34;Deep Neural Network made of stacked layers.
 
     Attributes:
-        layers (list): List of layers in the model.        
+        layers (list): List of layers in the model.
         params (dict): Model parameters.
         learning_rate (float): Size of learning steps.
 
-    Todo:        
+    Todo:
         Add checkpoint callback support.
     &#34;&#34;&#34;
 
     def __init__(self) -&gt; None:
-        self.layers = []        
+        self.layers = []
         self.params = {}
         self.learning_rate = 0.001
 
@@ -291,18 +320,41 @@ Add checkpoint callback support.</p></div>
             layer: The layer to add.
         &#34;&#34;&#34;
 
-        self.layers.append(layer)            
+        self.layers.append(layer)
+
+    def description(self):
+        &#34;&#34;&#34;Print a table containing information about the layers in the model.
+        &#34;&#34;&#34;
+
+        data = []
+        sum_params = 0
+        for layer in self.layers:
+            if layer.num_params: sum_params += layer.num_params
+            activation = getattr(getattr(layer, &#39;activation&#39;, None), &#39;__name__&#39;, None)
+            data.append([layer.layer_idx, layer.name, layer.output_shape, activation, layer.num_params])
+        data.append([None])
+        data.append([&#39;Total:&#39;, None, None, None, sum_params])
+        print(tabulate(data, headers=[&#39;Idx&#39;, &#39;Name&#39;, &#39;Output shape&#39;, &#39;Activation&#39;, &#39;Num params&#39;], tablefmt=&#39;pretty&#39;))
 
     def compile(self):
         &#34;&#34;&#34;Compile model architecture.
         &#34;&#34;&#34;
 
-        for i in range(1, len(self.layers)):
-            size_curr = self.layers[i].size
-            size_prev = self.layers[i - 1].size
+        layer_names = {}
+        for i in range(0, len(self.layers)):
+            curr = self.layers[i]
 
-            self.params[&#39;W&#39; + str(i)] = np.random.randn(size_curr, size_prev) * 0.1
-            self.params[&#39;B&#39; + str(i)] = np.zeros(size_curr)
+            # Naming layers
+            if not curr.name in layer_names:
+                layer_names[curr.name] = 1
+            else: layer_names[curr.name] += 1
+            curr.name += f&#39;_{str(layer_names[curr.name])}&#39;
+
+            # Setup layers based on surrounding layers
+            if i &gt; 0:
+                size_curr = curr.output_shape
+                size_prev = self.layers[i - 1].output_shape
+                self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
         &#34;&#34;&#34;Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -312,6 +364,7 @@ Add checkpoint callback support.</p></div>
         &#34;&#34;&#34;
 
         for key, value in new_params.items():
+            if key == &#39;error&#39;: continue
             self.params[key] -= self.learning_rate * value
 
 
@@ -323,7 +376,8 @@ Add checkpoint callback support.</p></div>
             divisor (int, required): Mini batch size.
         &#34;&#34;&#34;
         for key, value in new_params.items():
-            self.params[key] -= value / divisor    
+            if key == &#39;error&#39;: continue
+            self.params[key] -= value / divisor
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
         &#34;&#34;&#34;Split dataset into a number of batches with size `batch_size`.
@@ -342,16 +396,16 @@ Add checkpoint callback support.</p></div>
 
         indices = np.arange(inputs.shape[0])
         if shuffle: np.random.shuffle(indices)
-        
+
         mod = indices.shape[0] % batch_size
         if not mod == 0: indices = indices[0: - int(indices.shape[0] % batch_size)]
-        
+
         for start_idx in range(0, indices.shape[0] - batch_size + 1, batch_size):
             end_idx = start_idx + batch_size
-            if shuffle: 
+            if shuffle:
                 excerpt = indices[start_idx : end_idx]
             else:
-                excerpt = slice(start_idx, end_idx)                            
+                excerpt = slice(start_idx, end_idx)
             yield [inputs[excerpt], outputs[excerpt]]
 
     def train(self, inputs, outputs, optimizer=&#39;SGD&#39;, epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
@@ -365,37 +419,37 @@ Add checkpoint callback support.</p></div>
             learning_rate (float, optional): Size of steps used in backpropagation. Defaults to 0.001.
             mini_b_size (int, optional): Size of each mini batch. Defaults to 16.
             mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
-        &#34;&#34;&#34;        
+        &#34;&#34;&#34;
 
         assert inputs.shape[0] == outputs.shape[0]
-                
+
         self.learning_rate = learning_rate
 
-        for epoch in tqdm(range(epochs)):            
+        for epoch in tqdm(range(epochs)):
             if optimizer.upper() == &#39;SGD&#39;:
                 mini_b_size = 1
             elif optimizer.upper() == &#39;BATCH&#39;:
                 mini_b_size = inputs.shape[0]
-            
+
             mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
             for mini_batch in mini_batches:
                 batch_x, batch_y = mini_batch
                 avg_new_weights = {}
-                
+
                 for x, y in zip(batch_x, batch_y):
-                    output = self.forward_pass(x)                    
-                    new_weights = self.backward_pass(output, y)   
+                    output = self.forward_pass(x)
+                    new_weights = self.backward_pass(output, y)
 
                     if not avg_new_weights: avg_new_weights = new_weights
-                    else: 
+                    else:
                         for key, value in new_weights.items():
                             avg_new_weights[key] -= learning_rate * value
                 self.mini_b_update_network_params(new_weights, batch_x.shape[0])
 
     def compute_accuracy(self, inputs, outputs):
-        &#34;&#34;&#34;Test the network accuracy by comparing the network output with 
-        correct labels for a number of unknown test examples.                         
+        &#34;&#34;&#34;Test the network accuracy by comparing the network output with
+        correct labels for a number of unknown test examples.
 
         Args:
             inputs (list, required): List of input vectors.
@@ -414,23 +468,21 @@ Add checkpoint callback support.</p></div>
 
     def forward_pass(self, inputs):
         &#34;&#34;&#34;Calculate the output from the network for a given set of input values.
-        
+
         Args:
-            inputs (required): Input values for the network.    
+            inputs (required): Input values for the network.
 
         Returns:
-            list: The output values from the network.        
+            list: The output values from the network.
         &#34;&#34;&#34;
 
         params = self.params
         params[&#39;A0&#39;] = inputs
-            
-        for i in range(1, len(self.layers)):
-            # print(f&#34;forward i: {i}, activ. {self.layers[i].activation.__name__}&#34;)
-            params[&#39;Z&#39; + str(i)] = np.dot(params[&#39;W&#39; + str(i)], params[&#39;A&#39; + str(i - 1)]) + params[&#39;B&#39; + str(i)]
-            params[&#39;A&#39; + str(i)] = self.layers[i].activation(params[&#39;Z&#39; + str(i)])
 
-        return params[&#39;A&#39; + str(len(self.layers) - 1)]
+        for i in range(1, len(self.layers)):
+            self.layers[i].forward_pass(params)
+
+        return params.get(f&#39;A{len(self.layers) - 1}&#39;, f&#39;No output from layer {len(self.layers) - 1}&#39;)
 
     def backward_pass(self, output, target):
         &#34;&#34;&#34;Propagate backward through the network.
@@ -445,24 +497,30 @@ Add checkpoint callback support.</p></div>
             dict: Gradients for the network stored in a dictionary.
         &#34;&#34;&#34;
 
-        params = self.params
         new_params = {}
-
-        
         last_layer = len(self.layers) - 1
+        is_last = True
+        error = None
 
-        # Calculate last layer updates
-        error = 2 * (output - target) / output.shape[0] * self.layers[-1].activation(params[&#39;Z&#39; + str(last_layer)], derivative=True)
-        new_params[&#39;W&#39; + str(last_layer)] = np.outer(error, params[&#39;A&#39; + str(last_layer - 1)])        
-        new_params[&#39;B&#39; + str(last_layer)] = error
+        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+        for i in reversed(range(1, last_layer + 1)):
+            error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+            if is_last:
+                is_last = False
 
-        # Propagate backward and calculate other layer updates
-        for i in reversed(range(1, last_layer)):
-            error = np.dot(params[&#39;W&#39; + str(i + 1)].T, error) * self.layers[i + 1].activation(params[&#39;Z&#39; + str(i)], derivative=True)
-            new_params[&#39;W&#39; + str(i)] = np.outer(error, params[&#39;A&#39; + str(i - 1)])
-            new_params[&#39;B&#39; + str(i)] = error
-        
         return new_params
+
+    def load_params(self, params_path):
+        &#34;&#34;&#34;Load network parameters from `params_path`.
+
+        Args:
+            params_path (str): Path to .npz file.
+        &#34;&#34;&#34;
+        # Load trained network from .npz file
+        if os.path.exists(params_path):
+            params = np.load(params_path)
+            for key in params.files:
+                self.params[key] = params[key]
 
     def __str__(self) -&gt; str:
         return f&#34;&lt;Sequential model class object&gt;&#34;</code></pre>
@@ -490,7 +548,7 @@ Add checkpoint callback support.</p></div>
         layer: The layer to add.
     &#34;&#34;&#34;
 
-    self.layers.append(layer)            </code></pre>
+    self.layers.append(layer)</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.backward_pass"><code class="name flex">
@@ -528,23 +586,17 @@ Add checkpoint callback support.</p></div>
         dict: Gradients for the network stored in a dictionary.
     &#34;&#34;&#34;
 
-    params = self.params
     new_params = {}
-
-    
     last_layer = len(self.layers) - 1
+    is_last = True
+    error = None
 
-    # Calculate last layer updates
-    error = 2 * (output - target) / output.shape[0] * self.layers[-1].activation(params[&#39;Z&#39; + str(last_layer)], derivative=True)
-    new_params[&#39;W&#39; + str(last_layer)] = np.outer(error, params[&#39;A&#39; + str(last_layer - 1)])        
-    new_params[&#39;B&#39; + str(last_layer)] = error
+    # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+    for i in reversed(range(1, last_layer + 1)):
+        error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+        if is_last:
+            is_last = False
 
-    # Propagate backward and calculate other layer updates
-    for i in reversed(range(1, last_layer)):
-        error = np.dot(params[&#39;W&#39; + str(i + 1)].T, error) * self.layers[i + 1].activation(params[&#39;Z&#39; + str(i)], derivative=True)
-        new_params[&#39;W&#39; + str(i)] = np.outer(error, params[&#39;A&#39; + str(i - 1)])
-        new_params[&#39;B&#39; + str(i)] = error
-    
     return new_params</code></pre>
 </details>
 </dd>
@@ -561,12 +613,21 @@ Add checkpoint callback support.</p></div>
     &#34;&#34;&#34;Compile model architecture.
     &#34;&#34;&#34;
 
-    for i in range(1, len(self.layers)):
-        size_curr = self.layers[i].size
-        size_prev = self.layers[i - 1].size
+    layer_names = {}
+    for i in range(0, len(self.layers)):
+        curr = self.layers[i]
 
-        self.params[&#39;W&#39; + str(i)] = np.random.randn(size_curr, size_prev) * 0.1
-        self.params[&#39;B&#39; + str(i)] = np.zeros(size_curr)</code></pre>
+        # Naming layers
+        if not curr.name in layer_names:
+            layer_names[curr.name] = 1
+        else: layer_names[curr.name] += 1
+        curr.name += f&#39;_{str(layer_names[curr.name])}&#39;
+
+        # Setup layers based on surrounding layers
+        if i &gt; 0:
+            size_curr = curr.output_shape
+            size_prev = self.layers[i - 1].output_shape
+            self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.compute_accuracy"><code class="name flex">
@@ -574,8 +635,7 @@ Add checkpoint callback support.</p></div>
 </code></dt>
 <dd>
 <div class="desc"><p>Test the network accuracy by comparing the network output with
-correct labels for a number of unknown test examples.
-</p>
+correct labels for a number of unknown test examples.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>inputs</code></strong> :&ensp;<code>list, required</code></dt>
@@ -593,8 +653,8 @@ correct labels for a number of unknown test examples.
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def compute_accuracy(self, inputs, outputs):
-    &#34;&#34;&#34;Test the network accuracy by comparing the network output with 
-    correct labels for a number of unknown test examples.                         
+    &#34;&#34;&#34;Test the network accuracy by comparing the network output with
+    correct labels for a number of unknown test examples.
 
     Args:
         inputs (list, required): List of input vectors.
@@ -612,6 +672,30 @@ correct labels for a number of unknown test examples.
     return np.mean(predictions)</code></pre>
 </details>
 </dd>
+<dt id="pysnaike.models.Sequential.description"><code class="name flex">
+<span>def <span class="ident">description</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Print a table containing information about the layers in the model.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def description(self):
+    &#34;&#34;&#34;Print a table containing information about the layers in the model.
+    &#34;&#34;&#34;
+
+    data = []
+    sum_params = 0
+    for layer in self.layers:
+        if layer.num_params: sum_params += layer.num_params
+        activation = getattr(getattr(layer, &#39;activation&#39;, None), &#39;__name__&#39;, None)
+        data.append([layer.layer_idx, layer.name, layer.output_shape, activation, layer.num_params])
+    data.append([None])
+    data.append([&#39;Total:&#39;, None, None, None, sum_params])
+    print(tabulate(data, headers=[&#39;Idx&#39;, &#39;Name&#39;, &#39;Output shape&#39;, &#39;Activation&#39;, &#39;Num params&#39;], tablefmt=&#39;pretty&#39;))</code></pre>
+</details>
+</dd>
 <dt id="pysnaike.models.Sequential.forward_pass"><code class="name flex">
 <span>def <span class="ident">forward_pass</span></span>(<span>self, inputs)</span>
 </code></dt>
@@ -620,8 +704,7 @@ correct labels for a number of unknown test examples.
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>inputs</code></strong> :&ensp;<code>required</code></dt>
-<dd>Input values for the network.
-</dd>
+<dd>Input values for the network.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -634,23 +717,21 @@ correct labels for a number of unknown test examples.
 </summary>
 <pre><code class="python">def forward_pass(self, inputs):
     &#34;&#34;&#34;Calculate the output from the network for a given set of input values.
-    
+
     Args:
-        inputs (required): Input values for the network.    
+        inputs (required): Input values for the network.
 
     Returns:
-        list: The output values from the network.        
+        list: The output values from the network.
     &#34;&#34;&#34;
 
     params = self.params
     params[&#39;A0&#39;] = inputs
-        
-    for i in range(1, len(self.layers)):
-        # print(f&#34;forward i: {i}, activ. {self.layers[i].activation.__name__}&#34;)
-        params[&#39;Z&#39; + str(i)] = np.dot(params[&#39;W&#39; + str(i)], params[&#39;A&#39; + str(i - 1)]) + params[&#39;B&#39; + str(i)]
-        params[&#39;A&#39; + str(i)] = self.layers[i].activation(params[&#39;Z&#39; + str(i)])
 
-    return params[&#39;A&#39; + str(len(self.layers) - 1)]</code></pre>
+    for i in range(1, len(self.layers)):
+        self.layers[i].forward_pass(params)
+
+    return params.get(f&#39;A{len(self.layers) - 1}&#39;, f&#39;No output from layer {len(self.layers) - 1}&#39;)</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.iterate_minibatches"><code class="name flex">
@@ -695,17 +776,44 @@ correct labels for a number of unknown test examples.
 
     indices = np.arange(inputs.shape[0])
     if shuffle: np.random.shuffle(indices)
-    
+
     mod = indices.shape[0] % batch_size
     if not mod == 0: indices = indices[0: - int(indices.shape[0] % batch_size)]
-    
+
     for start_idx in range(0, indices.shape[0] - batch_size + 1, batch_size):
         end_idx = start_idx + batch_size
-        if shuffle: 
+        if shuffle:
             excerpt = indices[start_idx : end_idx]
         else:
-            excerpt = slice(start_idx, end_idx)                            
+            excerpt = slice(start_idx, end_idx)
         yield [inputs[excerpt], outputs[excerpt]]</code></pre>
+</details>
+</dd>
+<dt id="pysnaike.models.Sequential.load_params"><code class="name flex">
+<span>def <span class="ident">load_params</span></span>(<span>self, params_path)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load network parameters from <code>params_path</code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params_path</code></strong> :&ensp;<code>str</code></dt>
+<dd>Path to .npz file.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_params(self, params_path):
+    &#34;&#34;&#34;Load network parameters from `params_path`.
+
+    Args:
+        params_path (str): Path to .npz file.
+    &#34;&#34;&#34;
+    # Load trained network from .npz file
+    if os.path.exists(params_path):
+        params = np.load(params_path)
+        for key in params.files:
+            self.params[key] = params[key]</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.mini_b_update_network_params"><code class="name flex">
@@ -732,7 +840,8 @@ correct labels for a number of unknown test examples.
         divisor (int, required): Mini batch size.
     &#34;&#34;&#34;
     for key, value in new_params.items():
-        self.params[key] -= value / divisor    </code></pre>
+        if key == &#39;error&#39;: continue
+        self.params[key] -= value / divisor</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.sgd_update_network_params"><code class="name flex">
@@ -757,6 +866,7 @@ correct labels for a number of unknown test examples.
     &#34;&#34;&#34;
 
     for key, value in new_params.items():
+        if key == &#39;error&#39;: continue
         self.params[key] -= self.learning_rate * value</code></pre>
 </details>
 </dd>
@@ -797,30 +907,30 @@ correct labels for a number of unknown test examples.
         learning_rate (float, optional): Size of steps used in backpropagation. Defaults to 0.001.
         mini_b_size (int, optional): Size of each mini batch. Defaults to 16.
         mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
-    &#34;&#34;&#34;        
+    &#34;&#34;&#34;
 
     assert inputs.shape[0] == outputs.shape[0]
-            
+
     self.learning_rate = learning_rate
 
-    for epoch in tqdm(range(epochs)):            
+    for epoch in tqdm(range(epochs)):
         if optimizer.upper() == &#39;SGD&#39;:
             mini_b_size = 1
         elif optimizer.upper() == &#39;BATCH&#39;:
             mini_b_size = inputs.shape[0]
-        
+
         mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
         for mini_batch in mini_batches:
             batch_x, batch_y = mini_batch
             avg_new_weights = {}
-            
+
             for x, y in zip(batch_x, batch_y):
-                output = self.forward_pass(x)                    
-                new_weights = self.backward_pass(output, y)   
+                output = self.forward_pass(x)
+                new_weights = self.backward_pass(output, y)
 
                 if not avg_new_weights: avg_new_weights = new_weights
-                else: 
+                else:
                     for key, value in new_weights.items():
                         avg_new_weights[key] -= learning_rate * value
             self.mini_b_update_network_params(new_weights, batch_x.shape[0])</code></pre>
@@ -851,8 +961,10 @@ correct labels for a number of unknown test examples.
 <li><code><a title="pysnaike.models.Sequential.backward_pass" href="#pysnaike.models.Sequential.backward_pass">backward_pass</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.compile" href="#pysnaike.models.Sequential.compile">compile</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.compute_accuracy" href="#pysnaike.models.Sequential.compute_accuracy">compute_accuracy</a></code></li>
+<li><code><a title="pysnaike.models.Sequential.description" href="#pysnaike.models.Sequential.description">description</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.forward_pass" href="#pysnaike.models.Sequential.forward_pass">forward_pass</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.iterate_minibatches" href="#pysnaike.models.Sequential.iterate_minibatches">iterate_minibatches</a></code></li>
+<li><code><a title="pysnaike.models.Sequential.load_params" href="#pysnaike.models.Sequential.load_params">load_params</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.mini_b_update_network_params" href="#pysnaike.models.Sequential.mini_b_update_network_params">mini_b_update_network_params</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.sgd_update_network_params" href="#pysnaike.models.Sequential.sgd_update_network_params">sgd_update_network_params</a></code></li>
 <li><code><a title="pysnaike.models.Sequential.train" href="#pysnaike.models.Sequential.train">train</a></code></li>

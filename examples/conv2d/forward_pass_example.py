@@ -13,6 +13,7 @@ x_pad, y_pad = 1, 1
 
 input = np.arange(channels * in_x * in_y)
 input = input.reshape((channels, in_x, in_y))
+print('input bestående af to channels:')
 print(input)
 input = add_padding(input, np.array((x_pad, y_pad)))
 
@@ -22,11 +23,15 @@ w = w.reshape((filters, channels, x_w, y_w))
 
 out = np.zeros((filters, in_x, in_y))
 x_out, y_out = in_x, in_y
-bias = np.zeros((x_out, y_out)) + 1
+bias = np.arange(filters) + 1
 
+print('\ninput med tilføjet padding:')
 print(input)
+print('\nweights. Tre filtre med hver to channels:')
 print(w)
+print('\ntomt array til outputtet:')
 print(out)
+print('\nbias. En værdi til hvert filter:')
 print(bias)
 
 for f in range(filters):
@@ -37,8 +42,8 @@ for f in range(filters):
             dot = np.dot(input[:, x:x + x_w, y:y + y_w].flatten(), w[f].flatten())
             out[f,x,y] = dot
 
-print('Tensordot:')
+print('\nOut:')
 print(out)
-print('add bias:')
-out += bias
+print('\nTilføj bias:')
+out += bias[:, np.newaxis, np.newaxis]
 print(out)

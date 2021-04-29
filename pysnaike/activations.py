@@ -29,7 +29,7 @@ def identity(x, derivative=False):
         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
     """
 
-    if derivative: return x * 0 + 1
+    if derivative: return 1
     else: return x
 
 
@@ -74,9 +74,27 @@ def _relu_not_vect(x, derivative=False):
     else:
         return 0
 
+def _leaky_relu_not_vect(x, derivative=False):
+    """Non vectorized LeakyReLU activation function.
+
+    Args:
+        x (list): Vector with input values.
+        derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
+    """
+    a = 0.02
+    if x > 0:
+        if derivative:
+            return 1
+        else: return x
+    else:
+        if derivative:
+            return a
+        else: return a*x
+
 
 # Vectorize activation functions
 __relu = np.vectorize(_relu_not_vect)
+__leaky_relu = np.vectorize(_leaky_relu_not_vect)
 # __sigmoid = np.vectorize(_sigmoid_not_vect)
 
 
@@ -89,6 +107,16 @@ def relu(x, derivative=False):
     """
 
     return __relu(x, derivative=derivative)
+
+def leaky_relu(x, derivative=False):
+    """Vectorized ReLU activation function.
+
+    Args:
+        x (list): Vector with input values.
+        derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
+    """
+
+    return __leaky_relu(x, derivative=derivative)
 
 
 # def sigmoid(x, derivative=False):
