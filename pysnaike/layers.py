@@ -124,8 +124,12 @@ class Conv2D():
         self.layer_idx = kvargs['layer_idx']
 
         w = self.kernel
-        if self.kernel is None:
-            w = np.random.randn(self.num_filters, self.kernel_size[0], self.kernel_size[1])
+        out_shape = (self.num_filters, self.input_shape[0], self.kernel_size[0], self.kernel_size[1])
+
+        if w is not None:
+            assert w.shape == out_shape            
+        else:
+            w = np.random.randn(*out_shape)
 
         b = np.zeros(self.num_filters)
         return w, b
@@ -176,12 +180,14 @@ class Conv2D():
         w = params[f'W{self.layer_idx}']
         b = params[f'B{self.layer_idx}']
         prev_a = params[f'A{self.layer_idx - 1}']
-
+        # print("forward convolve")        
         conv = self.convolve(prev_a, w, self.padding)
         params[f'Z{self.layer_idx}'] = (conv / np.prod(self.kernel_size)) + b[:, np.newaxis, np.newaxis]
         params[f'A{self.layer_idx}'] = self.activation(params[f'Z{self.layer_idx}'])
 
-    def convolve(self, a, b, padding, sum_out=False):
+    
+
+    def convolve(self, a, b, padding, sum_out=False, back_conv = False, full_conv=False):
         """Full convolution between matrices `a` and `b`.
 
         Args:
@@ -193,24 +199,113 @@ class Conv2D():
         Returns:
             array: Matrix containing convoluted output.
         """
+        # print("conv shape a")
+        # print(a.shape)
+        # print("conv shape b")
+        # print(b.shape)
+        a_with_pad = np.zeros((a.shape[0], *(a.shape[1:] + padding * 2)))
+        # print("a_with_pad.shape")
+        # print(a_with_pad.shape)
+        a_with_pad[:, padding[0] : padding[0] + a.shape[1], padding[1]:padding[1] + a.shape[2]] = a        
 
-        a_with_pad = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2)))
-        a_with_pad[:, padding[0] : padding[0] + a.shape[1], padding[1]:padding[1] + a.shape[2]] = a
+        if not back_conv:
+            out = np.zeros((b.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
+        else:
+            out = np.zeros((b.shape[0], a.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
 
-        out = np.zeros((b.shape[0], *(a.shape[1:] + padding * 2 - b.shape[1:] + 1)))
+        # print("out.shape empty")
+        # print(out.shape)
+        for x in range(out.shape[-2]):
+            for y in range(out.shape[-1]):
+                # dot = np.tensordot(a_with_pad[:, x:x + b.shape[2], y:y + b.shape[3]], b, axes=([2,3], [2,3]))
+                # print(f"{x, y}")
+                if not back_conv:
+                    dot = np.tensordot(a_with_pad[:, x: x + b.shape[2], y: y + b.shape[3]], b, axes=([0,1,2], [1,2,3]))    
+                    # print(dot.shape)
+                    out[:,x,y] = dot
+                else:
+                    dot = np.tensordot(a_with_pad[:, x: x + b.shape[1], y: y + b.shape[2]], b, axes=([1,2], [1,2]))    
+                    # print(f"{dot.shape}")
+                    # print("out")
+                    # print(out)
+                    # print("dot.T")
+                    # print(dot.T)
+                    out[:,:,x,y] = dot.T
+                # print("dot.shape")
+                # print(dot.shape)
+                # print(out.shape)
+                # print(dot.shape)
+                # dot = np.sum(dot, axis=0)
+                # out[:,x,y] = dot
 
-        for x in range(out.shape[1]):
-            for y in range(out.shape[2]):
-                dot = np.tensordot(a_with_pad[:, x:x + b.shape[1], y:y + b.shape[2]], b, axes=([1,2], [1,2]))
-                out[:,x,y] = dot
-
+        # print("out.shape")
+        # print(out.shape)
         if sum_out:
             out = np.sum(out, axis=0)
+        return out
+    
+    def full_back_conv(self, a, b, padding, next_padding, sum_out=False, back_conv = False, full_conv=False):
+        """Full convolution between matrices `a` and `b`.
+
+        Args:
+            a: Stationary matrix.
+            b: Moving matrix.
+            padding: Two numbers representing padding.
+            sum_out (bool, optional): Whether output matrix should be summed along axis 0. Defaults to False.
+
+        Returns:
+            array: Matrix containing convoluted output.
+        """
+        # print("conv shape a")
+        # print(a.shape)
+        # print("conv shape b")
+        # print(b.shape)
+        a_with_pad = np.zeros((*a.shape[:-2], *(a.shape[-2:] + padding * 2)))
+        # print("a_with_pad.shape")
+        # print(a_with_pad.shape)
+        a_with_pad[:,:, padding[0] : padding[0] + a.shape[-2], padding[1]:padding[1] + a.shape[-1]] = a        
+
+        if not back_conv:
+            out = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
+        else:
+            out = np.zeros((b.shape[0], a.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
+
+        # print("out.shape empty")
+        # print(out.shape)
+        for x in range(out.shape[-2]):
+            for y in range(out.shape[-1]):
+                # dot = np.tensordot(a_with_pad[:, x:x + b.shape[2], y:y + b.shape[3]], b, axes=([2,3], [2,3]))
+                # print(f"{x, y}")
+                dot = np.tensordot(a_with_pad[:, :, x: x + b.shape[1], y: y + b.shape[2]], b, axes=([1,2,3], [0,1,2]))    
+                # print(f"{dot.shape}")
+                # print("out")
+                # print(out)
+                # print("dot.T")
+                # print(dot.T)
+                out[:,x,y] = dot
+                # print("dot.shape")
+                # print(dot.shape)
+                # print(out.shape)
+                # print(dot.shape)
+                # dot = np.sum(dot, axis=0)
+                # out[:,x,y] = dot
+
+        # print("out.shape")
+        # print(out.shape)
+        if sum_out:
+            out = np.sum(out, axis=0)
+
+        # Remove original padding
+        # print(out.shape)
+        # print(next_padding)
+        out = out[:,next_padding[0]:-next_padding[0], next_padding[1]:-next_padding[1]]
         return out
 
 
     def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
         """Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
+            Possible error. Not keeping track of layers.
+
 
         Args:
             error: Partial derivative of the final loss function with respect to activations from n+1 layer.
@@ -224,21 +319,34 @@ class Conv2D():
             np.array: dL/dx. How the loss-function is affected by input changes.
         """
 
-        if not is_last:
-            w = model.params['W' + str(self.layer_idx)]
-            arr = np.flip(np.flip(w, -2), -1)
 
+        activation_deriv = model.layers[self.layer_idx].activation(model.params['Z' + str(self.layer_idx)], derivative=True)
+        if not is_last:
+            w = model.params['W' + str(self.layer_idx + 1)]
+            arr = np.flip(np.flip(w, -2), -1)
+            # print("arr.shape pre swap")
+            # print(arr.shape)
             if len(arr.shape) > 3:
                 arr = np.swapaxes(arr, 0,1)
+            else: print("didn't swap axes")
 
             padding = np.array(error.shape[-2:]) - 1
-            error = self.convolve(arr, error, padding)
+            # print("backward convolve error not last") 
+            # print("error.shape")       
+            # print(error.shape)       
+            # print("n+ error.shape")                   
+            # print("full conv")
+            next_padding = model.layers[self.layer_idx + 1].padding
+            error = self.full_back_conv(arr, error, padding, next_padding, full_conv=True) * activation_deriv
+            # print(error[0,7])
+            # print(f"shape error not last layer {self.layer_idx}: {error.shape}")
         else:
-            error = 2 * (output - target) * model.layers[self.layer_idx].activation(model.params['Z' + str(self.layer_idx)], derivative=True)
+            # print("last")
+            error = 2 * (output - target) * activation_deriv
 
         prev_a = model.params['A' + str(self.layer_idx - 1)]
-
-        new_w = self.convolve(prev_a, error, self.padding)
+        # print("backward convolve new_w")        
+        new_w = self.convolve(prev_a, error, self.padding, back_conv=True)
         new_params['W' + str(self.layer_idx)] = new_w / np.prod(new_w.shape[1:]) * model.learning_rate
         new_params[f'B{self.layer_idx}'] = np.zeros(self.num_filters)
         return error
@@ -249,8 +357,7 @@ class Conv2D():
 
 class MaxPooling2D():
     def __init__(self, pool_size):
-        pass
-
+        pass    
 
 class AvgPooling2D():
     def __init__(self, pool_size):

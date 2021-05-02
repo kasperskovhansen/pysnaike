@@ -4,7 +4,7 @@
 import numpy as np
 import os.path
 import sys
-
+from os import path
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 
@@ -16,7 +16,6 @@ from PIL import Image
 
 
 # Sample input
-
 # Load grayscale image as input
 # img = Image.open('images/smiley.png').convert('L')
 # print(img)
@@ -48,86 +47,305 @@ from PIL import Image
 #                      [1,1,1,1,1,1,1,1],
 #                      [0,0,0,0,1,1,1,1]]]])
 
+# inputs = np.array([[[[0,0,0,0,0,0,1,1,1,0,0,0,0,0],
+#                      [0,0,0,0,0,0,1,1,1,0,0,0,0,0],
+#                      [0,0,0,1,1,1,1,1,1,0,0,0,0,0],
+#                      [0,0,0,1,1,1,1,1,1,0,0,0,0,0],
+#                      [0,0,0,1,1,1,1,1,1,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],                     
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0]],
+                    
+#                     [[0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,1,1],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,1,1],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,1,1],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,0,0],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,0,0],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,0,0],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,0,0],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,0,0],
+#                      [1,1,1,0,0,0,0,0,0,1,1,1,0,0]],                    
+#                      ]])
+
+
+# [[0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],                     
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0]]
+
+
 inputs = np.array([[[[0,0,0,0,0,0,0,0,0,0,0,0,0,0],
                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0,0,0,1,1,1,0,0,0,1,1,1,0,0],
-                     [0,0,0,1,1,1,0,0,0,1,1,1,0,0],
-                     [0,0,0,1,1,1,0,0,0,1,1,1,0,0],
-                     [0,0,0,1,1,1,0,0,0,1,1,1,0,0],
-                     [0,0,0,1,1,1,0,0,0,1,1,1,0,0],
-                     [0,0,0,1,1,1,0,0,0,1,1,1,0,0],
-                     [0,0,0,1,1,1,1,1,1,1,1,1,0,0],
-                     [0,0,0,1,1,1,1,1,1,1,1,1,0,0],
-                     [0,0,0,1,1,1,1,1,1,1,1,1,0,0],                     
                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0]]]])
+                     [0,0,0,1,1,1,0,0,0,0,0,0,0,0],
+                     [0,0,0,1,0,1,0,0,0,0,0,0,0,0],
+                     [0,0,0,1,1,1,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,1,1,1,0,0,0],
+                     [0,1,1,1,0,0,0,0,1,0,1,0,0,0],
+                     [0,1,0,1,0,0,0,0,1,1,1,0,0,0],                     
+                     [0,1,1,1,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0]],
+                    
+                    [[0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,1,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,1,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0]],                    
+                    
+                    [[0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0]],                    
+                     ]])
 
 # Edge detection kernel
-kernel = np.array([[[ 1, 1, 1],                    
+kernel = np.array([
+                  [[[ 1, 1, 1],                    
                     [-1,-1,-1],
                     [ 0, 0, 0]],
 
-                   [[ 0, 0, 0],
+                    [[ 1, 1, 1],                    
+                    [-1,-1,-1],
+                    [ 0, 0, 0]],
+
+                   [[ 1, 1, 1],                    
+                    [-1,-1,-1],
+                    [ 0, 0, 0]]],
+
+
+                  [[[ 0, 0, 0],
                     [-1,-1,-1],
                     [ 1, 1, 1]],
 
-                   [[ 0,-1, 1],                   
+                    [[ 0, 0, 0],
+                    [-1,-1,-1],
+                    [ 1, 1, 1]],
+
+                   [[ 0, 0, 0],
+                    [-1,-1,-1],
+                    [ 1, 1, 1]]],
+
+
+                  [[[ 0,-1, 1],                   
                     [ 0,-1, 1],
                     [ 0,-1, 1]],
 
+                    [[ 0,-1, 1],                   
+                    [ 0,-1, 1],
+                    [ 0,-1, 1]],
+
+                   [[ 0,-1, 1],                   
+                    [ 0,-1, 1],
+                    [ 0,-1, 1]]],
+
+
+                  [[[ 1,-1, 0],                   
+                    [ 1,-1, 0],
+                    [ 1,-1, 0]],
+
+                    [[ 1,-1, 0],                   
+                    [ 1,-1, 0],
+                    [ 1,-1, 0]],
+
                    [[ 1,-1, 0],                   
                     [ 1,-1, 0],
-                    [ 1,-1, 0]]], dtype=np.float32)
+                    [ 1,-1, 0]]]], dtype=np.float32)
 
 
 # Output used in training
 
-# outputs = np.array([[[[0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [1,1,1,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0]],
+outputs = np.array([[[[0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                      [0,0,0,1,1,1,0,0,0,0,0,0,0,0],
+                      [0,0,0,1,1,1,0,0,0,0,0,0,0,0],
+                      [0,0,0,1,1,1,0,0,0,0,0,0,0,0],
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                      [0,0,0,0,0,0,0,0,1,1,1,0,0,0],
+                      [0,0,0,0,0,0,0,0,1,1,1,0,0,0],
+                      [0,0,0,0,0,0,0,0,1,1,1,0,0,0],
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0], 
+                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0]]]])
 
-#                      [[0,0,0,1,0,0,0,0],
-#                       [0,0,0,1,0,0,0,0],
-#                       [0,0,0,1,0,0,0,0],
-#                       [0,0,0,1,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,0,0,0,0,0],
-#                       [0,0,0,1,0,0,0,0]]
-#                       ]])
+# colored_squares_32-32
+# Load grayscale image as input
+# convert('L')
+
+in_path = 'images/colored_squares_32-32.png'
+target_path = 'images/colored_squares_32-32_target.png'
+mark = 0
+if mark:
+    in_path = 'images/colored_squares_32-32_m.png'
+    target_path = 'images/colored_squares_32-32_target_m.png'    
+
+img = Image.open(in_path).convert('RGB')
+print(img)
+print(img.size)
+print(img.mode)
+print(inputs.shape)
+inputs = np.asarray(img)
+print(inputs.shape)
+inputs = np.transpose(inputs, axes=(1,0,2))
+print(inputs.shape)
+inputs = inputs.swapaxes(0,-1)[np.newaxis]
+print(inputs.shape)
+# inputs = inputs[np.newaxis]
+# print(inputs.shape)
+
+# plt.imshow(inputs[0, 0], cmap='gray')
+# plt.show()
+
+img_target = Image.open(target_path).convert('L')
+targets = np.asarray(img_target)
+targets = np.transpose(targets, axes=(1,0))
+targets = targets.swapaxes(0,-1)[np.newaxis, np.newaxis]
+print("targets.shape")
+print(targets.shape)
+
+# plt.imshow(targets[0, 0], cmap='gray')
+# plt.show()
 
 # Create model
 my_model = models.Sequential()
-my_model.add(layers.Reshape((1, *inputs.shape[-2:])))
-my_model.add(layers.Conv2D(4, kernel_size=(3, 3), input_shape=(1, *inputs.shape[-2:]), strides=(1, 1), kernel=kernel, padding='same', activation=activations.identity))
-# my_model.add(layers.Conv2D(2, kernel_size=(3, 3), input_shape=(4, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.leaky_relu))
+my_model.add(layers.Reshape((3, *inputs.shape[-2:])))
+my_model.add(layers.Conv2D(16, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), kernel=None, padding='same', activation=activations.identity))
+my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(16, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
+my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(1, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
+
 
 my_model.compile()
 my_model.description()
 
-# my_model.train(inputs, outputs, optimizer='SGD', epochs=2000, learning_rate=0.01)
 
+# Load trained network from .npz file
+# network_path = 'network_params.npz'
+# if path.exists(network_path):
+#     print('Loading params from external file...')
+#     params = np.load(network_path)
+#     for key in params.files:
+#         my_model.params[key] = params[key]
+
+my_model.train(inputs, targets, optimizer='SGD', epochs=2, learning_rate=0.00001)
+# Save the network params to disk
+np.savez('network_params.npz', **my_model.params)
+print('Done saving.')
 
 output = my_model.forward_pass(np.squeeze(inputs, axis=0))
+
+print("output.shape")
+print(output.shape)
 
 mask = output<0
 output[mask] = 0
 
-output = np.sum(output, axis=0)
+# output = np.sum(output, axis=0)
 
-f, axes = plt.subplots(1,2, figsize=(12, 6))
-f.suptitle("Conv2D detecting black and white outline", fontsize=18)
-axes[0].imshow(inputs.squeeze((0,1)), cmap='gray')
-axes[0].set_title("Input")
-axes[1].imshow(output, cmap='gray')
-axes[1].set_title("Output")
+
+inputs = inputs.squeeze(0)
+print(inputs.shape)
+print(inputs[0].shape)
+
+
+
+fig = plt.figure(figsize=(12, 6))
+ax = {}
+
+plt_y = max(inputs.shape[0], output.shape[0]) + 1
+print(plt_y)
+print(output.shape[0])
+
+ax = plt.subplot2grid((2, plt_y), (0, 0), rowspan=1, colspan=1)
+ax.imshow( np.transpose(inputs.swapaxes(0,-1), axes=(1,0,2)) )
+ax.set_title(f"Input channel colored")
+# input channels
+for c in range(inputs.shape[0]):
+    # print(f"c: {c}")
+    ax = plt.subplot2grid((2, plt_y), (0, c + 1), rowspan=1, colspan=1)
+    if c == 0: col = 'Reds'
+    elif c == 1: col = 'Greens'
+    elif c == 2: col = 'Blues'
+    ax.imshow(inputs[c], cmap=col)
+    ax.set_title(f"Input channel {c}")
+
+ax = plt.subplot2grid((2, plt_y), (1, 0), rowspan=1, colspan=1)
+ax.imshow(targets[0,0])
+ax.set_title(f"Targets")
+
+for c in range(output.shape[0]):
+    # print(f"c: {c}")
+    ax = plt.subplot2grid((2, plt_y), (1, c + 1), rowspan=1, colspan=1)
+    ax.imshow(output[c], cmap='gray')
+    ax.set_title(f"Output channel {c}")
+
+# ax2 = plt.subplot2grid((2, 4), (0, 2), rowspan=1, colspan=2)
+# ax2.imshow(inputs[1], cmap='gray')
+# ax2.set_title("Input channel 2")
+
 plt.show()
+
+# f, axes = plt.subplots(2,2, figsize=(12, 6))
+# f.suptitle("Conv2D detecting black and white outline", fontsize=18)
+# axes[0,0].imshow(inputs[0], cmap='gray')
+# axes[0,0].set_title("Input")
+# axes[1,0].imshow(inputs[1], cmap='gray')
+# axes[1,0].set_title("Input")
+# axes[0,1].imshow(output[0], cmap='gray')
+# axes[0,1].set_title("Output")
+# axes[1,1].imshow(output[1], cmap='gray')
+# plt.show()
+
+# f, axes = plt.subplots(1,2, figsize=(12, 6))
+# f.suptitle("Conv2D detecting black and white outline", fontsize=18)
+# axes[0].imshow(inputs.squeeze((0,1)), cmap='gray')
+# axes[0].set_title("Input")
+# axes[1].imshow(output, cmap='gray')
+# axes[1].set_title("Output")
+# plt.show()
 
 # f, axes = plt.subplots(2,3, figsize=(12, 6))
 # f.suptitle("Conv2D detecting horizontal lines with bright left and dark right", fontsize=18)

@@ -104,7 +104,7 @@ class Sequential:
             list: Examples included in a mini batch. Yielded as a list containing a list with inputs and a list with outputs.
         """
 
-        assert inputs.shape[0] == outputs.shape[0]
+        # assert inputs.shape[0] == outputs.shape[0]
 
         indices = np.arange(inputs.shape[0])
         if shuffle: np.random.shuffle(indices)
@@ -133,7 +133,7 @@ class Sequential:
             mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
         """
 
-        assert inputs.shape[0] == outputs.shape[0]
+        # assert inputs.shape[0] == outputs.shape[0]
 
         self.learning_rate = learning_rate
 
