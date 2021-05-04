@@ -53,6 +53,8 @@ class Sequential:
         """
 
         layer_names = {}
+        # size_prev = self.layers[0].input_shape
+        size_prev = None
         for i in range(0, len(self.layers)):
             curr = self.layers[i]
 
@@ -63,10 +65,11 @@ class Sequential:
             curr.name += f'_{str(layer_names[curr.name])}'
 
             # Setup layers based on surrounding layers
-            if i > 0:
-                size_curr = curr.output_shape
-                size_prev = self.layers[i - 1].output_shape
-                self.params[f'W{i}'], self.params[f'B{i}'] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
+            # if i > 0:
+            if size_prev is None: size_prev = self.layers[0].input_shape
+            size_curr = curr.output_shape
+            size_prev = self.layers[i - 1].output_shape
+            self.params[f'W{i}'], self.params[f'B{i}'] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
         """Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -212,11 +215,12 @@ class Sequential:
         new_params = {}
         last_layer = len(self.layers) - 1
         is_last = True
-        error = None
+        gradient = None
 
-        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+
+        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `gradient` is returned
         for i in reversed(range(1, last_layer + 1)):
-            error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+            gradient = self.layers[i].backward_pass(gradient, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
             if is_last:
                 is_last = False
 
