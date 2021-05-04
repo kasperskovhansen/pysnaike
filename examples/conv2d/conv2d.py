@@ -250,12 +250,25 @@ print(targets.shape)
 # plt.imshow(targets[0, 0], cmap='gray')
 # plt.show()
 
+in_shape = np.array((1,3,12,12))
+inputs = np.random.randint(0, 10, np.prod(in_shape)).reshape(in_shape)
+print("inputs")
+print(inputs)
+
+target_shape = np.array((1,1,3,3))
+targets = np.random.randint(0, 10, np.prod(target_shape)).reshape(target_shape)
+print("targets")
+print(targets)
+
 # Create model
 my_model = models.Sequential()
-my_model.add(layers.Reshape((3, *inputs.shape[-2:])))
-my_model.add(layers.Conv2D(16, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), kernel=None, padding='same', activation=activations.identity))
-my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(16, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
-my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(1, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
+my_model.add(layers.Reshape((3, *inputs.shape[-2:]))) # should not be necessary
+my_model.add(layers.Conv2D(3, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), kernel=None, padding='same', activation=activations.identity))
+my_model.add(layers.MaxPooling2D((4,4)))
+my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), kernel=None, padding='same', activation=activations.identity))
+# my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
+# my_model.add(layers.MaxPooling2D((2,2)))
+# my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(1, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
 
 
 my_model.compile()
@@ -270,10 +283,10 @@ my_model.description()
 #     for key in params.files:
 #         my_model.params[key] = params[key]
 
-my_model.train(inputs, targets, optimizer='SGD', epochs=2, learning_rate=0.00001)
-# Save the network params to disk
-np.savez('network_params.npz', **my_model.params)
-print('Done saving.')
+my_model.train(inputs, targets, optimizer='SGD', epochs=1, learning_rate=0.00001)
+# # Save the network params to disk
+# np.savez('network_params.npz', **my_model.params)
+# print('Done saving.')
 
 output = my_model.forward_pass(np.squeeze(inputs, axis=0))
 

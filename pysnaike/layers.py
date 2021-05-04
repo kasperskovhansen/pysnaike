@@ -336,7 +336,9 @@ class Conv2D():
             # print(error.shape)       
             # print("n+ error.shape")                   
             # print("full conv")
-            next_padding = model.layers[self.layer_idx + 1].padding
+            next_padding = np.array([0,0])
+            if hasattr(model.layers[self.layer_idx + 1], 'padding'):
+                next_padding = model.layers[self.layer_idx + 1].padding
             error = self.full_back_conv(arr, error, padding, next_padding, full_conv=True) * activation_deriv
             # print(error[0,7])
             # print(f"shape error not last layer {self.layer_idx}: {error.shape}")
@@ -349,6 +351,7 @@ class Conv2D():
         new_w = self.convolve(prev_a, error, self.padding, back_conv=True)
         new_params['W' + str(self.layer_idx)] = new_w / np.prod(new_w.shape[1:]) * model.learning_rate
         new_params[f'B{self.layer_idx}'] = np.zeros(self.num_filters)
+        
         return error
 
     def __str__(self) -> str:
@@ -356,8 +359,135 @@ class Conv2D():
 
 
 class MaxPooling2D():
-    def __init__(self, pool_size):
-        pass    
+    def __init__(self, pool_size, name="max_pool"):
+        self.pool_size = np.array(pool_size)
+        self.name = name
+        self.output_shape = None
+        self.num_params = None
+
+    def setup(self, **kvargs):
+        self.layer_idx = kvargs['layer_idx']
+        self.input_shape = kvargs['size_prev']
+        self.output_shape = (self.input_shape[0], *(self.input_shape[-2:] // self.pool_size))
+
+        # Updating pool size with prev layer channel dimension
+        self.pool_size = np.array((self.input_shape[0], *self.pool_size))
+        idx = np.ones(self.input_shape)        
+        return idx, None
+
+    def pool(self, a, b, out_shape):
+        """Convolve `b` across `a`.
+
+        Args:
+            a: Stationary matrix.
+            b: Moving pool matrix shape.
+
+        Todo:
+            Use numpy slide and stride. [::]
+        """
+        stride = b[-2:]
+
+        out = np.zeros(out_shape)
+        out_coords = np.zeros((*out.shape, 2))
+
+        for x in range(out.shape[-2]):
+            for y in range(out.shape[-1]):
+                arr_x = x * stride[0]
+                arr_y = y * stride[1]
+                
+                curr_a = a[:, arr_x : arr_x + stride[0], arr_y : arr_y + stride[1]]                
+                curr_a_reshape = curr_a.reshape(curr_a.shape[0], -1)            
+                max = curr_a_reshape.argmax(axis=1)                                
+                coords = np.column_stack(np.unravel_index(max, curr_a.shape[1:]))
+                vals = curr_a_reshape[np.arange(curr_a_reshape.shape[0]), max]
+                           
+                coords = coords.T
+                coords[0] += arr_x
+                coords[1] += arr_y                
+                out_coords[:,x,y,:] = coords.T
+                out[:,x,y] = vals
+              
+        return out_coords, out        
+
+
+    def forward_pass(self, params):
+        print("forward pass max pool")
+
+        prev_a = params[f'A{self.layer_idx - 1}']  
+        out_coords, out = self.pool(prev_a, self.pool_size, self.output_shape)
+        params[f'A{self.layer_idx}'] = out
+        print(params[f'A{self.layer_idx}'].shape)
+        params[f'I{self.layer_idx}'] = out_coords.astype(int)
+        print(params[f'I{self.layer_idx}'].shape)
+
+    def backward_pass(self, error, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
+        """Performs backpropagation by calculating weight and bias gradients and returning `error` which is dL/dx.
+
+        Args:
+            error: Partial derivative with respect to activations from previous layer.
+            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
+            output (optional): Output from this layer during forward pass. Defaults to None.
+            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
+            new_params (dict, optional): Dictionary with model gradients for weights and biases. Defaults to None.
+            model (optional): Reference to the `Sequential` model. Defaults to None.
+
+        Returns:
+            np.array: dL/dx. How the loss-function is affected by input changes.
+        """
+        print("backward pass max pool")
+
+        # activation_deriv = model.layers[self.layer_idx].activation(model.params['Z' + str(self.layer_idx)], derivative=True)
+        if not is_last:
+            # error = error
+            print("error")
+            print(error)
+            print("model.params['W' + str(self.layer_idx + 1)].T")
+            print(model.params['W' + str(self.layer_idx + 1)].T)
+            error = np.dot(model.params['W' + str(self.layer_idx + 1)].T, error)
+        else:
+            error = 2 * (output - target) / output.shape[0]
+
+        print(error.shape)
+
+        # new_params['W' + str(self.layer_idx)] = np.outer(error, model.params['A' + str(self.layer_idx - 1)])
+        # new_params['B' + str(self.layer_idx)] = error
+
+        # transform error
+        # print("error")
+        # print(error.shape)
+        # print("backward_pass max pool")
+        arr_idx = model.params['I' + str(self.layer_idx)].copy()
+        # print(arr_idx.shape)
+        # print(arr_idx)
+
+        # print("ones")
+        ones = np.ones(self.input_shape)
+        # print(ones)
+
+        # print("apply along axis")
+        for n in range(arr_idx.shape[0]):
+            print(n)
+            n_coords = np.concatenate(arr_idx[n], 0)       
+            # print(n_coords)      
+            n_coords = n_coords.T           
+            print(n_coords.shape)      
+            # print(n)    
+            print(error[n].flatten().shape)
+            ones[n, n_coords[0], n_coords[1]] = error[n].flatten()
+
+        # print(ones)
+
+      
+        
+
+        print(ones.shape)
+
+        return ones
+
+
+
+
+
 
 class AvgPooling2D():
     def __init__(self, pool_size):
@@ -368,7 +498,7 @@ class Flatten():
     def __init__(self, name='flatten'):
         self.name = name
         self.output_shape = None
-        self.num_params = None
+        self.num_params = None        
 
     def setup(self, **kvargs):
         self.layer_idx = kvargs['layer_idx']
