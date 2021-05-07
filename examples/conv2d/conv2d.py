@@ -255,7 +255,7 @@ inputs = np.random.randint(0, 10, np.prod(in_shape)).reshape(in_shape)
 print("inputs")
 print(inputs)
 
-target_shape = np.array((1,1,9))
+target_shape = np.array((1,9))
 targets = np.random.randint(0, 10, np.prod(target_shape)).reshape(target_shape)
 print("targets")
 print(targets)
@@ -263,12 +263,21 @@ print(targets)
 # Create model
 my_model = models.Sequential()
 # my_model.add(layers.Input(input_shape=inputs.shape[-3:])) # should not be necessary
-my_model.add(layers.Conv2D(3, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), kernel=None, padding='same', activation=activations.identity))
+my_model.add(layers.Conv2D(5, kernel_size=(3, 3), input_shape=(inputs.shape[-3:]), strides=(1, 1), kernel=None, padding='same', activation=activations.sigmoid))
 my_model.add(layers.MaxPooling2D((2,2)))
-my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(3, 6, 6), strides=(1, 1), kernel=None, padding='same', activation=activations.identity))
+my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(5, 6, 6), strides=(1, 1), kernel=None, padding='same', activation=activations.sigmoid))
 my_model.add(layers.MaxPooling2D((2,2)))
-# my_model.add(layers.Flatten())
-my_model.add(layers.Reshape((1,1,9)))
+my_model.add(layers.Reshape((9)))
+my_model.add(layers.Dense(9, activation=activations.sigmoid))
+my_model.add(layers.Dense(9, activation=activations.softmax))
+# my_model.add(layers.Dense(6, activation=activations.sigmoid))
+# # my_model.add(layers.Dense(9, activation=activations.sigmoid))
+# my_model.add(layers.Dense(9, activation=activations.sigmoid))
+# my_model.add(layers.MaxPooling2D((2,2)))
+# my_model.add(layers.MaxPooling2D((2,2)))
+# my_model.add(layers.Reshape((9)))
+# my_model.add(layers.Reshape((1,1,9)))
+
 
 # my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
 # my_model.add(layers.MaxPooling2D((2,2)))
@@ -286,13 +295,15 @@ my_model.description()
 #     params = np.load(network_path)
 #     for key in params.files:
 #         my_model.params[key] = params[key]
+print("in shape")
+print(inputs.shape)
 
-my_model.train(inputs, targets, optimizer='SGD', epochs=1000, learning_rate=0.0001)
+my_model.train(inputs, targets, optimizer='SGD', epochs=100, learning_rate=0.1)
 # # Save the network params to disk
 # np.savez('network_params.npz', **my_model.params)
 # print('Done saving.')
 
-output = my_model.forward_pass(np.squeeze(inputs, axis=0))
+output = my_model.forward_pass(np.squeeze(inputs, axis=0))[np.newaxis]
 
 print("output.shape")
 print(output.shape)
@@ -300,11 +311,15 @@ print(output.shape)
 mask = output<0
 output[mask] = 0
 
+output = output[np.newaxis]
+
 # output = np.sum(output, axis=0)
 
-
-inputs = inputs.squeeze(0)
+print("inputs.shape")
+# inputs = inputs.swapaxes
 print(inputs.shape)
+inputs = inputs.squeeze(0)
+# print(inputs.shape)
 print(inputs[0].shape)
 
 
@@ -318,10 +333,10 @@ print(output.shape[0])
 
 ax = plt.subplot2grid((2, plt_y), (0, 0), rowspan=1, colspan=1)
 ax.imshow( np.transpose(inputs.swapaxes(0,-1), axes=(1,0,2)) )
+# ax.imshow( inputs.squeeze(0) )
 ax.set_title(f"Input channel sum")
 # input channels
 for c in range(inputs.shape[0]):
-    # print(f"c: {c}")
     ax = plt.subplot2grid((2, plt_y), (0, c + 1), rowspan=1, colspan=1)
     if c == 0: col = 'Reds'
     elif c == 1: col = 'Greens'
@@ -332,11 +347,10 @@ for c in range(inputs.shape[0]):
 ax = plt.subplot2grid((2, plt_y), (1, 0), rowspan=1, colspan=1)
 
 targets = targets[np.newaxis]
-ax.imshow(targets[0,0], cmap="gray")
+ax.imshow(targets[0], cmap="gray")
 ax.set_title(f"Targets")
 
 for c in range(output.shape[0]):
-    # print(f"c: {c}")
     ax = plt.subplot2grid((2, plt_y), (1, c + 1), rowspan=1, colspan=1)
     ax.imshow(output[c], cmap='gray')
     ax.set_title(f"Output channel {c}")

@@ -29,7 +29,7 @@ def identity(x, derivative=False):
         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
     """
 
-    if derivative: return 1
+    if derivative: return np.full(x.shape, 1)
     else: return x
 
 

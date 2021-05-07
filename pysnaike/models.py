@@ -53,7 +53,6 @@ class Sequential:
         """
 
         layer_names = {}
-        # size_prev = self.layers[0].input_shape
         size_prev = None
         for i in range(0, len(self.layers)):
             curr = self.layers[i]
@@ -64,11 +63,11 @@ class Sequential:
             else: layer_names[curr.name] += 1
             curr.name += f'_{str(layer_names[curr.name])}'
 
-            # Setup layers based on surrounding layers
-            # if i > 0:
+            # Setup layers based on surrounding layers            
             if size_prev is None: size_prev = self.layers[0].input_shape
+            else: size_prev = self.layers[i - 1].output_shape
+             
             size_curr = curr.output_shape
-            size_prev = self.layers[i - 1].output_shape
             self.params[f'W{i}'], self.params[f'B{i}'] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
@@ -90,8 +89,9 @@ class Sequential:
             new_params (dict, required): Adjustments to model parameters.
             divisor (int, required): Mini batch size.
         """
+                
         for key, value in new_params.items():
-            if key == 'error': continue
+            if key == 'error': continue    
             self.params[key] -= value / divisor
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
@@ -192,9 +192,8 @@ class Sequential:
         """
 
         params = self.params
-        params['A0'] = inputs
-
-        for i in range(1, len(self.layers)):
+        params['A-1'] = inputs        
+        for i in range(0, len(self.layers)):            
             self.layers[i].forward_pass(params)
 
         return params.get(f'A{len(self.layers) - 1}', f'No output from layer {len(self.layers) - 1}')
