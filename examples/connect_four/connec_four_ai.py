@@ -13,14 +13,20 @@ class Connect_four_ai():
     def __init__(self, params_path=None, memory_path=None):
         # AI client
         self.Q = models.Sequential()
-        self.Q.add(layers.Dense(36, activation=activations.input))
-        self.Q.add(layers.Dense(30, activation=activations.relu))
-        self.Q.add(layers.Dense(30, activation=activations.relu))
-        self.Q.add(layers.Dense(18, activation=activations.relu))
+        self.Q.add(layers.Reshape((1,6,6)))
+        self.Q.add(layers.Conv2D(15, kernel_size=(3,3), input_shape=(1,6,6), activation=activations.sigmoid))
+        self.Q.add(layers.Conv2D(5, kernel_size=(3,3), input_shape=(15,6,6), activation=activations.sigmoid))        
+        self.Q.add(layers.Conv2D(2, kernel_size=(3,3), input_shape=(5,6,6), activation=activations.sigmoid))
+        # self.Q.add(layers.MaxPooling2D(pool_size=(2,2)))        
+        self.Q.add(layers.Reshape((2*36)))
+        self.Q.add(layers.Dense(72, activation=activations.relu))
+        self.Q.add(layers.Dense(20, activation=activations.relu))        
         self.Q.add(layers.Dense(6, activation=activations.softmax))
-        self.Q.compile()
 
-        self.client = dql.Client(Q_1=self.Q, memory_capacity=10000, batch_size=8, params_path=params_path, memory_path=memory_path)
+        self.Q.compile()
+        self.Q.description()
+
+        self.client = dql.Client(Q_1=self.Q, memory_capacity=1000, batch_size=4, params_path=params_path, memory_path=memory_path)
 
         self.first_iteration = True
 

@@ -250,12 +250,12 @@ print(targets.shape)
 # plt.imshow(targets[0, 0], cmap='gray')
 # plt.show()
 
-in_shape = np.array((1,3,12,12))
+in_shape = np.array((1,10,12,12))
 inputs = np.random.randint(0, 10, np.prod(in_shape)).reshape(in_shape)
 print("inputs")
 print(inputs)
 
-target_shape = np.array((1,9))
+target_shape = np.array((3,3))
 targets = np.random.randint(0, 10, np.prod(target_shape)).reshape(target_shape)
 print("targets")
 print(targets)
@@ -266,9 +266,9 @@ my_model = models.Sequential()
 my_model.add(layers.Conv2D(5, kernel_size=(3, 3), input_shape=(inputs.shape[-3:]), strides=(1, 1), kernel=None, padding='same', activation=activations.sigmoid))
 my_model.add(layers.MaxPooling2D((2,2)))
 my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(5, 6, 6), strides=(1, 1), kernel=None, padding='same', activation=activations.sigmoid))
-my_model.add(layers.MaxPooling2D((2,2)))
-my_model.add(layers.Reshape((9)))
-my_model.add(layers.Dense(9, activation=activations.sigmoid))
+# my_model.add(layers.MaxPooling2D((2,2)))
+my_model.add(layers.Reshape((36)))
+my_model.add(layers.Dense(36, activation=activations.leaky_relu))
 my_model.add(layers.Dense(9, activation=activations.softmax))
 # my_model.add(layers.Dense(6, activation=activations.sigmoid))
 # # my_model.add(layers.Dense(9, activation=activations.sigmoid))
@@ -276,7 +276,7 @@ my_model.add(layers.Dense(9, activation=activations.softmax))
 # my_model.add(layers.MaxPooling2D((2,2)))
 # my_model.add(layers.MaxPooling2D((2,2)))
 # my_model.add(layers.Reshape((9)))
-# my_model.add(layers.Reshape((1,1,9)))
+my_model.add(layers.Reshape((3,3)))
 
 
 # my_model.add(layers.Conv2D(1, kernel_size=(3, 3), input_shape=(3, *inputs.shape[-2:]), strides=(1, 1), padding='same', activation=activations.identity))
@@ -298,7 +298,7 @@ my_model.description()
 print("in shape")
 print(inputs.shape)
 
-my_model.train(inputs, targets, optimizer='SGD', epochs=100, learning_rate=0.1)
+my_model.train(inputs, targets, optimizer='SGD', epochs=10, learning_rate=0.01)
 # # Save the network params to disk
 # np.savez('network_params.npz', **my_model.params)
 # print('Done saving.')
@@ -311,7 +311,7 @@ print(output.shape)
 mask = output<0
 output[mask] = 0
 
-output = output[np.newaxis]
+output = output
 
 # output = np.sum(output, axis=0)
 
@@ -332,7 +332,7 @@ print(plt_y)
 print(output.shape[0])
 
 ax = plt.subplot2grid((2, plt_y), (0, 0), rowspan=1, colspan=1)
-ax.imshow( np.transpose(inputs.swapaxes(0,-1), axes=(1,0,2)) )
+ax.imshow( np.transpose(inputs[0:3].swapaxes(0,-1), axes=(1,0,2)) )
 # ax.imshow( inputs.squeeze(0) )
 ax.set_title(f"Input channel sum")
 # input channels

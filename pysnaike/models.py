@@ -89,7 +89,7 @@ class Sequential:
             new_params (dict, required): Adjustments to model parameters.
             divisor (int, required): Mini batch size.
         """
-                
+
         for key, value in new_params.items():
             if key == 'error': continue    
             self.params[key] -= value / divisor
@@ -233,8 +233,9 @@ class Sequential:
         """
         # Load trained network from .npz file
         if os.path.exists(params_path):
-            params = np.load(params_path)
+            params = np.load(params_path, allow_pickle=True)
             for key in params.files:
+                print(key)
                 self.params[key] = params[key]
 
     def __str__(self) -> str:

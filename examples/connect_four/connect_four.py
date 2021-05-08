@@ -30,7 +30,7 @@ ai = Connect_four_ai()
 params_path = 'network_params.npz'
 if os.path.exists(params_path):
     print(f"Loading training data from external file '{params_path}'...")
-    params = np.load(params_path)
+    params = np.load(params_path, allow_pickle=True)
     for key in params.files:
         ai.client.Q_1.params[key] = params[key]
     ai.client.Q_2 = ai.client.Q_1
@@ -47,7 +47,7 @@ if os.path.exists(memory_path):
     print(len(ai.client.exp_bank.memory))
     print(ai.client.memory_capacity)
 
-ai.client.epsilon = 0
+ai.client.epsilon = 0.3
 
 first_iter_p1 = True
 first_iter_p2 = True

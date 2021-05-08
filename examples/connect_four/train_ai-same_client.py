@@ -16,9 +16,10 @@ from pysnaike import activations, dql, layers, models
 
 game = Connect_four_game()
 ai = Connect_four_ai(params_path='network_params.npz', memory_path='exp_bank.npz')
+# ai = Connect_four_ai()
 
-ai.client.episode = 12000
-while ai.client.episode < 1000000:
+ai.client.episode = 0
+while True:
     ai.client.episode += 1
     should_break = False
     is_terminal = 0
@@ -56,7 +57,7 @@ while ai.client.episode < 1000000:
         prev_state = prev_states[curr_player - 1]
 
         if prev_action is not None:
-            print(f'TRAIN Curr: {curr_player}, prev_action: {prev_action}, reward {reward}, is_terminal: {is_terminal}, should_break: {should_break}')
+            print(f'TRAIN Eps: {ai.client.epsilon} Curr: {curr_player}, prev_action: {prev_action}, reward {reward}, is_terminal: {is_terminal}, should_break: {should_break}')
 
             ai.client.add_exp(prev_state, prev_action, reward, state, is_terminal)
             ai.client.train()
@@ -83,10 +84,10 @@ while ai.client.episode < 1000000:
             curr_player = 1
             game.state = 1
 
-    if ai.client.episode % 100 == 0:
+    if ai.client.episode % 10 == 0:
         print(f'Episode {ai.client.episode}. Epsilon : {ai.client.epsilon}')
 
-        if ai.client.episode % 1000 == 0:
+        if ai.client.episode % 20 == 0:
             print('Saving ...')
             np.savez(f'network_params.npz', **ai.client.Q_1.params)
             np.savez(f'exp_bank.npz', exp_bank=ai.client.exp_bank.memory)
