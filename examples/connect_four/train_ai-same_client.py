@@ -1,3 +1,6 @@
+"""Train ai client by literally playing agains the same version of itself.
+"""
+
 from game import Connect_four_game
 from connec_four_ai import Connect_four_ai
 

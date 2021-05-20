@@ -1,17 +1,6 @@
-
-
-import math
-import os.path
-import random
-import sys
-
-import pygame
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-
+"""Connect four game.
+"""
 import numpy as np
-from pysnaike import activations, dql, layers, models
 
 
 class Connect_four_game:
@@ -45,7 +34,7 @@ class Connect_four_game:
         if self.state == 1 or self.state == 3:
             if self.grid[col][0] == 0:
                 #Valid move
-                i = 5
+                i = self.board_dim - 1
                 while self.grid[col][i] != 0:                    
                     i -= 1                    
                 self.grid[col][i] = self.turn()
@@ -112,18 +101,16 @@ class Connect_four_game:
         in_row = 0
         reset = False
         for i in range(coords[0] - l, coords[0] + r + 1):
-            if not switch:
+            if not switch:                     
                 field_check = self.grid[i][coords[1] - (coords[0] - i)]
-            else:
-                # print("i" + str(i) + str(p))
+            else:                
                 field_check = self.grid[i][coords[1] + coords[0] - i]
             if field_check == p:
                 if reset: # Reset
                     in_row = 1
                     reset = False
                 else: in_row += 1 # Endnu en på stribe    
-            else: reset = True # Reset næste gang et felt passer
-            # print("d coords: {}, in_row {}".format([i, coords[1] - (coords[0] - i)], in_row))
+            else: reset = True # Reset næste gang et felt passer            
             if in_row == self.n_in_a_row: return True
    
 

@@ -1,7 +1,5 @@
-"""Classes related to the Deep Q Network algorithm.
-Perhaps use name Agent for a class.
+"""Classes related to the Deep Q Learning algorithm.
 """
-
 
 import random
 import numpy as np
@@ -12,7 +10,7 @@ class Client():
     """Deep Q Learning client who acts on states and learns by its mistakes.
     """
 
-    def __init__(self, epsilon=0, gamma=0.9, memory_capacity=10000, batch_size=10, learning_rate=0.01, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
+    def __init__(self, epsilon=0, gamma=0.97, memory_capacity=10000, batch_size=4, learning_rate=0.001, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
         
         self.state = None
         self.is_terminal = False
@@ -35,11 +33,7 @@ class Client():
         if memory_path and os.path.exists(memory_path):
             memory = np.load(memory_path, allow_pickle=True)            
             self.exp_bank.memory = memory['exp_bank'].tolist()
-            print("loaded memory_bank")
-            # print(self.exp_bank.memory)
-            # print(self.exp_bank.memory.count(None))
-            # print(len(self.exp_bank.memory))
-            # breakpoint()
+            print("loaded memory_bank")            
 
         # Action-value function
         if Q_1 is not None:
@@ -74,11 +68,11 @@ class Client():
         
         # Eploration or exploitation
         p = random.random()
-        action = 0
-        if p <= self.epsilon:
+        action = 0        
+        if p < self.epsilon:            
             # Random action
             action = random.randint(0, self.num_actions - 1)
-        else:
+        else:            
             # Choose best action
             action = self.max_action(self.state)
         return action
@@ -165,20 +159,6 @@ class Client():
             self.Q_1.mini_b_update_network_params(new_weights, len(outputs))
 
 
-class Transition():
-    """A transition used in experience replay.
-    """
-
-    def __init__(self, state, action, reward, new_state):
-        self.state = state
-        self.action = action
-        self.reward = reward
-        self.new_state = new_state
-
-    def __str__(self):
-        return str((self.state, self.action, self.reward, self.new_state))
-
-
 class ExpReplay():
     """Experience replay used in training a DQL client.
     """
@@ -190,15 +170,9 @@ class ExpReplay():
 
     def push(self, memory):
         """Add a transition to the memory
-        """
-
-        # while len(self.memory) < self.capacity:
-        #     self.memory.append(None)
-        # self.memory[self.position] = Transition(**kvargs)                
-        self.memory.pop(0)
-        # self.memory[self.position]
-        self.memory.append(memory)
-        # self.position = (self.position + 1) % self.capacity
+        """       
+        self.memory.pop(0)        
+        self.memory.append(memory)        
 
     def sample(self, batch_size):
         """Retrieve a sample from the memory of size `batch_size`

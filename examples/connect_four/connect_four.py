@@ -1,17 +1,12 @@
+"""Play against a trained client using pygame. Most of this code is borrowed by SPR.
+"""
+
 import pygame
 from game import Connect_four_game
 from connec_four_ai import Connect_four_ai
-
-import math
-import os.path
-import random
-import sys
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-
 import numpy as np
-from pysnaike import activations, dql, layers, models
+import os
+
 
 # Setup pygame
 pygame.init()
@@ -23,18 +18,16 @@ clock = pygame.time.Clock()
 done = False
 game = Connect_four_game()
 
-
 ai = Connect_four_ai()
 
 # Load trained network from .npz file
-params_path = 'network_params.npz'
+params_path = 'C13_network_params.npz'
 if os.path.exists(params_path):
     print(f"Loading training data from external file '{params_path}'...")
     params = np.load(params_path, allow_pickle=True)
     for key in params.files:
         ai.client.Q_1.params[key] = params[key]
     ai.client.Q_2 = ai.client.Q_1
-
 
 # Load client memory from .npz file
 memory_path = 'exp_bank.npz'
@@ -90,10 +83,7 @@ def draw_game():
     elif game.state == 5:
         screen.blit(myfont.render("Game was won!", 0, (255,255,255)), (470,380))
 
-
-
 # Tilstandsmaskine
-
 #Main game loop
 while not done:
     for event in pygame.event.get():
@@ -119,41 +109,6 @@ while not done:
 
                 game.place(x)
                     
-                # state = game.get_state()                
-                # is_terminal = game.win()                                
-                # if is_terminal == 1:
-                #     reward = 1
-                # elif is_terminal == 2:
-                #     reward = -1
-                # if not is_terminal:
-                #     reward = 0.2
-                
-                
-                # if not first_iter_p1:
-                #     ai.client.add_exp(state, is_terminal)
-                #     ai.client.train()
-                # else: first_iter_p1 = False
-
-                # if is_terminal is not 0:
-                #     score[is_terminal - 1] += 1
-                #     if score[is_terminal - 1] % 100 == 0:
-                #         print(f'Saving p{is_terminal}')
-                #         if is_terminal == 1:
-                #             np.savez('network_params_p1.npz', **ai.client.Q_1.params)
-                #         elif is_terminal == 2:
-                #             np.savez('network_params_p2.npz', **ai2.client.Q_1.params)
-                #     # print(is_terminal)
-                #     if should_break:
-                #         game.state = 5
-                #         continue
-                #     else: should_break = True
-                # else:
-                #     x = ai.make_move(state, is_terminal, reward)
-                #     game.place(x)                     
-
-                # game.state = 3
-
-
                 if game.win():
                     game.state = 5
                 else:
@@ -162,7 +117,6 @@ while not done:
                 if players == 2:
                     if x_off <= pos[0] <= x_off + 6*(size*1.1) and y_off > pos[1]:
                         x = int((pos[0] - x_off)/(size*1.1))
-                        # ai.add_data((game.grid, x))
                         game.place(x)
 
                     if game.win() > 0:
@@ -173,19 +127,16 @@ while not done:
                 game.reset()
                 game.state == 1
         if players == 1 and game.state == 3:
+            # Player against AI
 
             state = game.invert_state(game.get_state())
-            is_terminal = game.win()
-            # if not is_terminal is 0:
-            #     score[is_terminal - 1] += 1
+            is_terminal = game.win()           
             if is_terminal == 1:
                 reward = 1
             elif is_terminal == 2:
                 reward = -1
             if not is_terminal:
                 reward = 0.2
-            
-
             
             if is_terminal is not 0 or game.bad_move:
                 game.state = 5
@@ -195,25 +146,6 @@ while not done:
                 game.place(x)                     
                 game.state = 1
 
-
-
-            # #Make AI move
-            # state = np.array(game.grid).flatten()
-            # if game.win() > 0:
-            #     print(f"Game.win {game.win()}")
-            #     is_terminal = True
-            #     reward = -1
-            # else:
-            #     is_terminal = False
-            #     reward = 0.2
-            # game.place(ai.make_move(state, is_terminal, reward))
-            # if game.win() > 0:
-            #     game.state = 5
-            # else:
-            #     game.state = 1
-
     draw_game()
-
-    #pygame kommandoer til at vise grafikken og opdatere 60 gange i sekundet.
     pygame.display.flip()
     clock.tick(60)

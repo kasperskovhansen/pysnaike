@@ -15,6 +15,7 @@ class Dense():
             name (str, optional): Name of the input layer.
             activation (optional): Activation function used at this layer.
         """
+
         self.size = size
         self.input_shape = np.array(self.size)
         self.name = name
@@ -32,7 +33,7 @@ class Dense():
             (w, b): Weight and bias.
         """
 
-        self.layer_idx = kvargs['layer_idx']               
+        self.layer_idx = kvargs['layer_idx']
         w = np.random.randn(kvargs['size_curr'], np.prod(kvargs['size_prev'])) * 0.1
         b = np.zeros(kvargs['size_curr'])
         return w, b
@@ -44,12 +45,12 @@ class Dense():
             params (dict): Model parameters.
         """
         w = params[f'W{self.layer_idx}']
-        b = params[f'B{self.layer_idx}']        
-        prev_a = params[f'A{self.layer_idx - 1}']        
-        
+        b = params[f'B{self.layer_idx}']
+        prev_a = params[f'A{self.layer_idx - 1}']
+
         # Referenced object `params` is modified
         np.dot(w, prev_a)
-        params[f'Z{self.layer_idx}'] = np.dot(w, prev_a) + b        
+        params[f'Z{self.layer_idx}'] = np.dot(w, prev_a) + b
         params[f'A{self.layer_idx}'] = self.activation(params[f'Z{self.layer_idx}'])
 
     def backward_pass(self, gradient, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
@@ -67,16 +68,16 @@ class Dense():
             np.array: dL/dx. How the loss-function is affected by input changes.
         """
 
-        activation_deriv = model.layers[self.layer_idx].activation(model.params[f'Z{self.layer_idx}'], derivative=True)        
-        if not is_last:            
+        activation_deriv = model.layers[self.layer_idx].activation(model.params[f'Z{self.layer_idx}'], derivative=True)
+        if not is_last:
             local = gradient * activation_deriv
-        else:           
+        else:
             local = 2 * (output - target) / output.shape[0] * activation_deriv
-        
-        new_params[f'W{self.layer_idx}'] = np.outer(local, model.params[f'A{self.layer_idx - 1}'])                                
-        new_params[f'B{self.layer_idx}'] = local                
 
-        out = np.dot(model.params[f'W{self.layer_idx}'].T, local.T)        
+        new_params[f'W{self.layer_idx}'] = np.outer(local, model.params[f'A{self.layer_idx - 1}'])
+        new_params[f'B{self.layer_idx}'] = local
+
+        out = np.dot(model.params[f'W{self.layer_idx}'].T, local.T)
         return out
 
     def __str__(self) -> str:
@@ -85,9 +86,7 @@ class Dense():
 
 class Conv2D():
     def __init__(self, num_filters, kernel_size=(3, 3), input_shape=(1, 5, 5), strides=(1,1), kernel=None, padding="same", activation=activations.identity, name: str = "conv2d"):
-        """2D convolutional layer.
-
-        Not sure activations are working properly.
+        """2D convolutional layer.        
 
         Args:
             num_filters (int): Number of filters in layer.
@@ -101,7 +100,7 @@ class Conv2D():
 
         Todo:
             Stride.
-            Check input shapes.
+            Merge `full_back_conv()` with `convolve()`.
         """
 
         self.num_filters = num_filters
@@ -179,31 +178,29 @@ class Conv2D():
         Args:
             params (dict): Model parameters for all layers.
         """
-
         w = params[f'W{self.layer_idx}']
         b = params[f'B{self.layer_idx}']
         prev_a = params[f'A{self.layer_idx - 1}']
         conv = self.convolve(prev_a, w, self.padding)
-        params[f'Z{self.layer_idx}'] = (conv / np.prod(self.kernel_size)) + b[:, np.newaxis, np.newaxis]        
+        params[f'Z{self.layer_idx}'] = (conv / np.prod(self.kernel_size)) + b[:, np.newaxis, np.newaxis]
         params[f'A{self.layer_idx}'] = self.activation(params[f'Z{self.layer_idx}'])
 
 
-
-    def convolve(self, a, b, padding, sum_out=False, back_conv = False, full_conv=False):
-        """Full convolution between matrices `a` and `b`.
+    def convolve(self, a, b, padding, back_conv = False):
+        """Convolution between matrices `a` and `b`.
 
         Args:
             a: Stationary matrix.
             b: Moving matrix.
             padding: Two numbers representing padding.
-            sum_out (bool, optional): Whether output matrix should be summed along axis 0. Defaults to False.
+            back_conv (bool): Whether the convolution is during a backward_pass or not. Defaults to False.
 
         Returns:
             array: Matrix containing convoluted output.
-        """       
-        a_with_pad = np.zeros((a.shape[0], *(a.shape[1:] + padding * 2)))        
+        """
+        
+        a_with_pad = np.zeros((a.shape[0], *(a.shape[1:] + padding * 2)))
         a_with_pad[:, padding[0] : padding[0] + a.shape[1], padding[1]:padding[1] + a.shape[2]] = a
-
         if not back_conv:
             out = np.zeros((b.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
         else:
@@ -217,18 +214,16 @@ class Conv2D():
                 else:
                     dot = np.tensordot(a_with_pad[:, x: x + b.shape[1], y: y + b.shape[2]], b, axes=([1,2], [1,2]))
                     out[:,:,x,y] = dot.T
-        if sum_out:
-            out = np.sum(out, axis=0)
         return out
 
-    def full_back_conv(self, a, b, padding, next_padding, sum_out=False, back_conv = False, full_conv=False):
+    def full_back_conv(self, a, b, padding, next_padding):
         """Full convolution between matrices `a` and `b`.
 
         Args:
             a: Stationary matrix.
             b: Moving matrix.
             padding: Two numbers representing padding.
-            sum_out (bool, optional): Whether output matrix should be summed along axis 0. Defaults to False.
+            next_padding: Two numbers representing padding to be romoved before returning.
 
         Returns:
             array: Matrix containing convoluted output.
@@ -236,18 +231,12 @@ class Conv2D():
         a_with_pad = np.zeros((*a.shape[:-2], *(a.shape[-2:] + padding * 2)))
         a_with_pad[:,:, padding[0] : padding[0] + a.shape[-2], padding[1]:padding[1] + a.shape[-1]] = a
 
-        if not back_conv:
-            out = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
-        else:
-            out = np.zeros((b.shape[0], a.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
+        out = np.zeros((a.shape[0], *(a.shape[2:] + padding * 2 - b.shape[2:] + 1)))
 
         for x in range(out.shape[-2]):
             for y in range(out.shape[-1]):
                 dot = np.tensordot(a_with_pad[:, :, x: x + b.shape[1], y: y + b.shape[2]], b, axes=([1,2,3], [0,1,2]))
                 out[:,x,y] = dot
-
-        if sum_out:
-            out = np.sum(out, axis=0)
 
         # Remove original padding
         out = out[:,next_padding[0]:-next_padding[0], next_padding[1]:-next_padding[1]]
@@ -292,20 +281,33 @@ class Conv2D():
         out_padding = np.array(local.shape[-2:]) - 1
         in_padding = self.padding
 
-        return self.full_back_conv(arr, local, out_padding, in_padding, full_conv=True)
+        return self.full_back_conv(arr, local, out_padding, in_padding)
 
     def __str__(self) -> str:
         return f"<Conv2D layer class object named '{self.name}' with input shape {self.input_shape} and filter shape '{self.kernel_size}'>"
 
 
-class MaxPooling2D():
+class MaxPooling2D():    
     def __init__(self, pool_size, name="max_pool"):
+        """Max pooling layer often used to highlight features after a convolutional layer.
+
+        Args:
+            pool_size: Tuple of two integers representing the kernel shape.
+            name (str, optional): Name of the layer. Defaults to "max_pool".
+        """
+
         self.pool_size = np.array(pool_size)
         self.name = name
         self.output_shape = None
         self.num_params = None
 
     def setup(self, **kvargs):
+        """Setup layer and instantiate index matrix.
+
+        Returns:
+            list: Idx matrix and biases.
+        """
+
         self.layer_idx = kvargs['layer_idx']
         self.input_shape = kvargs['size_prev']
         self.output_shape = (self.input_shape[0], *(self.input_shape[-2:] // self.pool_size))
@@ -325,7 +327,7 @@ class MaxPooling2D():
         Todo:
             Use numpy slide and stride. [::]
         """
-        
+
         stride = b[-2:]
 
         out = np.zeros(out_shape)
@@ -352,19 +354,25 @@ class MaxPooling2D():
 
 
     def forward_pass(self, params):
+        """Forward pass through `MaxPooling2D` layer. Max value in each kernel stride is saved 
+        as output activations, and indices of max values are saved as well.
+
+        Args:
+            params (dict): Model parameters.
+        """
 
         prev_a = params[f'A{self.layer_idx - 1}']
-        out_coords, out = self.pool(prev_a, self.pool_size, self.output_shape)        
+        out_coords, out = self.pool(prev_a, self.pool_size, self.output_shape)
         for channel in range(out.shape[0]):
-            max = np.max(out[channel])           
-            min = np.min(out[channel])      
+            max = np.max(out[channel])
+            min = np.min(out[channel])
             divisor = np.max([max, np.absolute(min)])
-            out[channel] /= divisor            
-        
+            out[channel] /= divisor
+
         params[f'A{self.layer_idx}'] = out
         params[f'I{self.layer_idx}'] = out_coords.astype(int)
-        
-    def backward_pass(self, gradient, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
+
+    def backward_pass(self, gradient, is_last=False, output=None, target=None, model=None, **kvargs):
         """Performs backpropagation by calculating weight and bias gradients and returning `gradient` which is dL/dx.
 
         Args:
@@ -383,7 +391,7 @@ class MaxPooling2D():
             local = gradient
         else:
             local = 2 * (output - target)
-        
+
         arr_idx = model.params['I' + str(self.layer_idx)].copy()
         out_gradient = np.ones(self.input_shape)
         for n in range(arr_idx.shape[0]):
@@ -394,28 +402,52 @@ class MaxPooling2D():
         return out_gradient
 
 
-class AvgPooling2D():
-    def __init__(self, pool_size):
-        pass
-
-
 class Flatten():
     def __init__(self, name='flatten'):
+        """Layer used for flattening the data matrix.
+
+        Args:            
+            name (str, optional): Name of the layer. Defaults to 'flatten'.
+        """
+        
         self.name = name
         self.output_shape = None
         self.num_params = None
         self.size_prev = None
 
     def setup(self, **kvargs):
+        """Setup layer and instantiate input and output shapes.
+
+        Returns:
+            list: Weights and biases.
+        """
+
         self.layer_idx = kvargs['layer_idx']
         self.size_prev = kvargs['size_prev']
         self.output_shape = np.array([np.prod(self.size_prev)])
         return None, None
 
-    def forward_pass(self, params):        
+    def forward_pass(self, params):
+        """Forward pass through `Flatten` layer. Data matrix is flattened.
+
+        Args:
+            params (dict): Model parameters.
+        """
+
         params[f'A{self.layer_idx}'] = params[f'A{self.layer_idx - 1}'].flatten()
 
-    def backward_pass(self, gradient, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
+    def backward_pass(self, gradient, is_last=False, output=None, target=None, **kvargs):
+        """Performs backpropagation by calculating or reshaping input gradients and returning `gradient` which is dL/dx.
+
+        Args:
+            gradient: Partial derivative with respect to activations from previous layer.
+            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
+            output (optional): Output from this layer during forward pass. Defaults to None.
+            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
+
+        Returns:
+            np.array: dL/dx. How the loss-function is affected by input changes.
+        """
         if not is_last:
             local = gradient
         else:
@@ -425,25 +457,56 @@ class Flatten():
 
 
 class Reshape():
-    def __init__(self, output_shape, name='reshape'):
+    def __init__(self, output_shape, input_shape=None, name='reshape'):
+        """Layer used for reshaping the data matrix.
+
+        Args:
+            output_shape (tuple): Shape of output data.
+            input_shape (tuple, optional): Shape of input data used when retransforming during backward pass. Defaults to None.
+            name (str, optional): Name of the layer. Defaults to 'reshape'.
+        """
+
         self.name = name
-        self.input_shape = np.array([0])
+        self.input_shape = input_shape if input_shape is not None else np.array([0])
         self.output_shape = output_shape
         self.num_params = None
-        self.size_prev = None        
+        self.size_prev = None
 
     def setup(self, **kvargs):
+        """Setup layer and instantiate input and output shapes.
+
+        Returns:
+            list: Weights and biases.
+        """
+
         self.layer_idx = kvargs['layer_idx']
         self.size_prev = kvargs['size_prev']
         return None, None
 
-    def forward_pass(self, params):        
+    def forward_pass(self, params):
+        """Forward pass through `Reshape` layer. Data matrix is reshaped.
+
+        Args:
+            params (dict): Model parameters.
+        """
+
         params[f'A{self.layer_idx}'] = params[f'A{self.layer_idx - 1}'].reshape(self.output_shape)
-        
-    def backward_pass(self, gradient, is_last=False, output=None, target=None, new_params=None, model=None, **kvargs):
+
+    def backward_pass(self, gradient, is_last=False, output=None, target=None, **kvargs):
+        """Performs backpropagation by calculating or reshaping input gradients and returning `gradient` which is dL/dx.
+
+        Args:
+            gradient: Partial derivative with respect to activations from previous layer.
+            is_last (bool, optional): Whether this layer is the last one in the model. Defaults to False.
+            output (optional): Output from this layer during forward pass. Defaults to None.
+            target (optional): The target output from the model. Only used when `is_last` is True. Defaults to None.
+
+        Returns:
+            np.array: dL/dx. How the loss-function is affected by input changes.
+        """
+
         if not is_last:
             local = gradient
         else:
             local = 2 * (output - target)
-
         return local.reshape(self.size_prev)

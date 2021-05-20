@@ -1,31 +1,21 @@
-"""AI is playing against previous version of itself.
+"""Train client by playing against previous versions of itself.
 """
 
 from game import Connect_four_game
 from connec_four_ai import Connect_four_ai
-
-
-import math
-import os.path
-import random
-import sys
-import time
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-
 import numpy as np
-from pysnaike import activations, dql, layers, models
 
 
 clients_paths = "client_bank"
 
 def save_ai_load_opp(ai, num_clients):
-    """Decide who to play against based on difficulty
+    """Decide who to play against based on difficulty. 
+    Currently not based on difficulty.
 
     Returns:
         Connect_four_ai: Returns an AI with the correct set of parameters loaded.
     """
+
     # Saving first version of client to client-bank
     np.savez(f'{clients_paths}/C{num_clients}_network_params.npz', **ai.client.Q_1.params)    
 
@@ -37,18 +27,16 @@ def save_ai_load_opp(ai, num_clients):
 
 # Setup 
 game = Connect_four_game()
-
 num_clients = 0
 
 # AI to be trained
-ai = Connect_four_ai(params_path="network_params.npz")
+ai = Connect_four_ai()
 
 opp, opp_id = save_ai_load_opp(ai, num_clients)
 num_clients += 1
 
-# One for AI and 0 for opponent
-score = np.array([0]*50)
 
+score = np.array([0]*50)    # One for AI and zero for opponent victory
 
 ai.client.episode = 0
 while True:
@@ -92,43 +80,28 @@ while True:
         elif not is_terminal == curr_player:
             # other player won
             reward = -1
-
         
-        if not gave_score:
-            # print("curr_player")
-            # print(curr_player)
-            # print(curr_player % 2)
-            # print((curr_player - 1) % 2)
-            # print("score before")
-            # print(score)
+        if not gave_score:            
             if reward > 0:
                 score = np.append(score, curr_player % 2)                
             elif reward < 0:
                 score = np.append(score, (curr_player - 1) % 2)
             if reward != 0:
+                game.print_game(np.array(game.grid).reshape(6,6).T)
+                print(f'C vs {opp_id}, Score: {np.sum(score) / score.shape[0]}. Player {curr_player} won. Eps: {ai.client.epsilon.round(2)}')
                 score = score[1:]
-                gave_score = True
-            # print("score after")
-            # print(score)
-        if reward != 0:
-            # print(score)
-            # game.print_game(np.array(game.grid).reshape(6,6).T)
-            # print(score)
-            print(f'C vs {opp_id}, Score: {np.sum(score) / score.shape[0]}. Player {curr_player} won. Eps: {ai.client.epsilon.round(2)}')
-        
-
+                gave_score = True                    
 
         prev_action = prev_actions[curr_player - 1]
         prev_state = prev_states[curr_player - 1]
 
         if prev_action is not None:
+            # Debug print:
             # print(f'TRAIN Eps: {ai.client.epsilon} Curr: {curr_player}, prev_action: {prev_action}, reward {reward}, is_terminal: {is_terminal}, should_break: {should_break}')
-
             ai.client.add_exp(prev_state, prev_action, reward, state, is_terminal)
             ai.client.train()
 
         if is_terminal is not 0:
-            # print(f'is_terminal: {is_terminal}')
             if should_break:
                 break
             else: should_break = True
@@ -140,9 +113,8 @@ while True:
                 ai.client.action = x
             else:
                 x = opp.make_move(state, is_terminal, reward)
-
-            # game.print_game(np.array(game.grid).reshape(6,6).T)
-            # print(f'Player: {curr_player}, is_terminal: {is_terminal}, action: {x}, should_break: {should_break}')
+            # game.print_game(np.array(game.grid).reshape(6,6).T)   # Print every move to console colored.
+            # print(f'Player: {curr_player}, is_terminal: {is_terminal}, action: {x}, should_break: {should_break}')   # More debug print            
             game.place(x)
 
         if curr_player == 1:
@@ -159,4 +131,3 @@ while True:
             print('Saving ...')
             np.savez(f'network_params.npz', **ai.client.Q_1.params)
             np.savez(f'exp_bank.npz', exp_bank=ai.client.exp_bank.memory)
-

@@ -1,14 +1,6 @@
-"Playing around with matrix manipulation used in Conv2D back propagation."
+"""Playing around with matrix manipulation used in Conv2D back propagation.
+"""
 
-import numpy as np
-import os.path
-import sys
-import time
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
-
-from pysnaike import activations, layers, models
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -29,14 +21,6 @@ print("Swap axes:")
 arr = np.swapaxes(arr, 0,1)
 print(arr)
 print(arr.shape)
-
-# # Sum along axes -1 and -2
-# print("Sum:")
-# arr = np.sum(arr, axis=(-3))
-# print(arr)
-# print(arr.shape)
-
-print("Loop")
 
 num_f, num_c, num_x, num_y = arr.shape
 

@@ -1,3 +1,6 @@
+"""Test of small part of Conv2D iteration.
+"""
+
 import numpy as np
 
 
@@ -5,8 +8,6 @@ def add_padding(input, padding):
     out = np.zeros((input.shape[0], *(input.shape[1:] + padding * 2)))       
     out[:, padding[0] : padding[0] + input.shape[1], padding[1]:padding[1] + input.shape[2]] = input
     return out
-
-
 
 channels, in_x, in_y = 2, 4, 4
 x_pad, y_pad = 1, 1

@@ -3,6 +3,7 @@
 
 import numpy as np
 import pysnaike.activations as activations
+import pysnaike.callbacks as callbacks
 from tqdm import tqdm
 import os.path
 from tabulate import tabulate
@@ -123,7 +124,7 @@ class Sequential:
                 excerpt = slice(start_idx, end_idx)
             yield [inputs[excerpt], outputs[excerpt]]
 
-    def train(self, inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=None):
+    def train(self, inputs, outputs, optimizer='SGD', epochs=10, learning_rate=0.001, mini_b_size=16, mini_b_shuffle=False, callbacks=callbacks.Callbacks()):
         """Train the model.
 
         Args:
@@ -139,28 +140,38 @@ class Sequential:
         # assert inputs.shape[0] == outputs.shape[0]
 
         self.learning_rate = learning_rate
-
+        num_epoch = 0
         for epoch in tqdm(range(epochs)):
             if optimizer.upper() == 'SGD':
                 mini_b_size = 1
             elif optimizer.upper() == 'BATCH':
-                mini_b_size = inputs.shape[0]
+                pass
+                # mini_b_size = inputs.shape[0]
 
             mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
+            batch = 0
             for mini_batch in mini_batches:
+                callbacks.execute("mini_batch")
+                batch += 1
+                # print(f"mini_batch {i}")
                 batch_x, batch_y = mini_batch
                 avg_new_weights = {}
 
-                for x, y in zip(batch_x, batch_y):
-                    output = self.forward_pass(x)
-                    new_weights = self.backward_pass(output, y)
+                num_in_batch = 0
+                for x, y in zip(batch_x, batch_y):       
+                    num_in_batch += 1  
+                    callbacks.execute("train_example", num_batch=batch, num_in_batch=num_in_batch)           
+                    output = self.forward_pass(x)                    
+                    new_weights = self.backward_pass(output, y)                    
 
                     if not avg_new_weights: avg_new_weights = new_weights
                     else:
                         for key, value in new_weights.items():
                             avg_new_weights[key] -= learning_rate * value
                 self.mini_b_update_network_params(new_weights, batch_x.shape[0])
+            num_epoch += 1
+            callbacks.execute("epoch", num_epoch=num_epoch)
 
     def compute_accuracy(self, inputs, outputs):
         """Test the network accuracy by comparing the network output with
@@ -218,7 +229,7 @@ class Sequential:
 
 
         # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `gradient` is returned
-        for i in reversed(range(1, last_layer + 1)):
+        for i in reversed(range(0, last_layer + 1)):
             gradient = self.layers[i].backward_pass(gradient, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
             if is_last:
                 is_last = False
@@ -235,7 +246,6 @@ class Sequential:
         if os.path.exists(params_path):
             params = np.load(params_path, allow_pickle=True)
             for key in params.files:
-                print(key)
                 self.params[key] = params[key]
 
     def __str__(self) -> str:

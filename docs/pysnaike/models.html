@@ -82,6 +82,7 @@ class Sequential:
         &#34;&#34;&#34;
 
         layer_names = {}
+        size_prev = None
         for i in range(0, len(self.layers)):
             curr = self.layers[i]
 
@@ -91,11 +92,12 @@ class Sequential:
             else: layer_names[curr.name] += 1
             curr.name += f&#39;_{str(layer_names[curr.name])}&#39;
 
-            # Setup layers based on surrounding layers
-            if i &gt; 0:
-                size_curr = curr.output_shape
-                size_prev = self.layers[i - 1].output_shape
-                self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
+            # Setup layers based on surrounding layers            
+            if size_prev is None: size_prev = self.layers[0].input_shape
+            else: size_prev = self.layers[i - 1].output_shape
+             
+            size_curr = curr.output_shape
+            self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
         &#34;&#34;&#34;Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -116,8 +118,9 @@ class Sequential:
             new_params (dict, required): Adjustments to model parameters.
             divisor (int, required): Mini batch size.
         &#34;&#34;&#34;
+
         for key, value in new_params.items():
-            if key == &#39;error&#39;: continue
+            if key == &#39;error&#39;: continue    
             self.params[key] -= value / divisor
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
@@ -133,7 +136,7 @@ class Sequential:
             list: Examples included in a mini batch. Yielded as a list containing a list with inputs and a list with outputs.
         &#34;&#34;&#34;
 
-        assert inputs.shape[0] == outputs.shape[0]
+        # assert inputs.shape[0] == outputs.shape[0]
 
         indices = np.arange(inputs.shape[0])
         if shuffle: np.random.shuffle(indices)
@@ -162,7 +165,7 @@ class Sequential:
             mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
         &#34;&#34;&#34;
 
-        assert inputs.shape[0] == outputs.shape[0]
+        # assert inputs.shape[0] == outputs.shape[0]
 
         self.learning_rate = learning_rate
 
@@ -170,11 +173,13 @@ class Sequential:
             if optimizer.upper() == &#39;SGD&#39;:
                 mini_b_size = 1
             elif optimizer.upper() == &#39;BATCH&#39;:
-                mini_b_size = inputs.shape[0]
+                pass
+                # mini_b_size = inputs.shape[0]
 
             mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
             for mini_batch in mini_batches:
+                print(&#34;mini_batch&#34;)
                 batch_x, batch_y = mini_batch
                 avg_new_weights = {}
 
@@ -218,9 +223,8 @@ class Sequential:
         &#34;&#34;&#34;
 
         params = self.params
-        params[&#39;A0&#39;] = inputs
-
-        for i in range(1, len(self.layers)):
+        params[&#39;A-1&#39;] = inputs        
+        for i in range(0, len(self.layers)):            
             self.layers[i].forward_pass(params)
 
         return params.get(f&#39;A{len(self.layers) - 1}&#39;, f&#39;No output from layer {len(self.layers) - 1}&#39;)
@@ -241,11 +245,12 @@ class Sequential:
         new_params = {}
         last_layer = len(self.layers) - 1
         is_last = True
-        error = None
+        gradient = None
 
-        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+
+        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `gradient` is returned
         for i in reversed(range(1, last_layer + 1)):
-            error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+            gradient = self.layers[i].backward_pass(gradient, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
             if is_last:
                 is_last = False
 
@@ -259,8 +264,9 @@ class Sequential:
         &#34;&#34;&#34;
         # Load trained network from .npz file
         if os.path.exists(params_path):
-            params = np.load(params_path)
+            params = np.load(params_path, allow_pickle=True)
             for key in params.files:
+                print(key)
                 self.params[key] = params[key]
 
     def __str__(self) -&gt; str:
@@ -341,6 +347,7 @@ class Sequential:
         &#34;&#34;&#34;
 
         layer_names = {}
+        size_prev = None
         for i in range(0, len(self.layers)):
             curr = self.layers[i]
 
@@ -350,11 +357,12 @@ class Sequential:
             else: layer_names[curr.name] += 1
             curr.name += f&#39;_{str(layer_names[curr.name])}&#39;
 
-            # Setup layers based on surrounding layers
-            if i &gt; 0:
-                size_curr = curr.output_shape
-                size_prev = self.layers[i - 1].output_shape
-                self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
+            # Setup layers based on surrounding layers            
+            if size_prev is None: size_prev = self.layers[0].input_shape
+            else: size_prev = self.layers[i - 1].output_shape
+             
+            size_curr = curr.output_shape
+            self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
 
     def sgd_update_network_params(self, new_params):
         &#34;&#34;&#34;Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -375,8 +383,9 @@ class Sequential:
             new_params (dict, required): Adjustments to model parameters.
             divisor (int, required): Mini batch size.
         &#34;&#34;&#34;
+
         for key, value in new_params.items():
-            if key == &#39;error&#39;: continue
+            if key == &#39;error&#39;: continue    
             self.params[key] -= value / divisor
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
@@ -392,7 +401,7 @@ class Sequential:
             list: Examples included in a mini batch. Yielded as a list containing a list with inputs and a list with outputs.
         &#34;&#34;&#34;
 
-        assert inputs.shape[0] == outputs.shape[0]
+        # assert inputs.shape[0] == outputs.shape[0]
 
         indices = np.arange(inputs.shape[0])
         if shuffle: np.random.shuffle(indices)
@@ -421,7 +430,7 @@ class Sequential:
             mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
         &#34;&#34;&#34;
 
-        assert inputs.shape[0] == outputs.shape[0]
+        # assert inputs.shape[0] == outputs.shape[0]
 
         self.learning_rate = learning_rate
 
@@ -429,11 +438,13 @@ class Sequential:
             if optimizer.upper() == &#39;SGD&#39;:
                 mini_b_size = 1
             elif optimizer.upper() == &#39;BATCH&#39;:
-                mini_b_size = inputs.shape[0]
+                pass
+                # mini_b_size = inputs.shape[0]
 
             mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
             for mini_batch in mini_batches:
+                print(&#34;mini_batch&#34;)
                 batch_x, batch_y = mini_batch
                 avg_new_weights = {}
 
@@ -477,9 +488,8 @@ class Sequential:
         &#34;&#34;&#34;
 
         params = self.params
-        params[&#39;A0&#39;] = inputs
-
-        for i in range(1, len(self.layers)):
+        params[&#39;A-1&#39;] = inputs        
+        for i in range(0, len(self.layers)):            
             self.layers[i].forward_pass(params)
 
         return params.get(f&#39;A{len(self.layers) - 1}&#39;, f&#39;No output from layer {len(self.layers) - 1}&#39;)
@@ -500,11 +510,12 @@ class Sequential:
         new_params = {}
         last_layer = len(self.layers) - 1
         is_last = True
-        error = None
+        gradient = None
 
-        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+
+        # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `gradient` is returned
         for i in reversed(range(1, last_layer + 1)):
-            error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+            gradient = self.layers[i].backward_pass(gradient, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
             if is_last:
                 is_last = False
 
@@ -518,8 +529,9 @@ class Sequential:
         &#34;&#34;&#34;
         # Load trained network from .npz file
         if os.path.exists(params_path):
-            params = np.load(params_path)
+            params = np.load(params_path, allow_pickle=True)
             for key in params.files:
+                print(key)
                 self.params[key] = params[key]
 
     def __str__(self) -&gt; str:
@@ -589,11 +601,12 @@ class Sequential:
     new_params = {}
     last_layer = len(self.layers) - 1
     is_last = True
-    error = None
+    gradient = None
 
-    # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `error` is returned
+
+    # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `gradient` is returned
     for i in reversed(range(1, last_layer + 1)):
-        error = self.layers[i].backward_pass(error, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+        gradient = self.layers[i].backward_pass(gradient, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
         if is_last:
             is_last = False
 
@@ -614,6 +627,7 @@ class Sequential:
     &#34;&#34;&#34;
 
     layer_names = {}
+    size_prev = None
     for i in range(0, len(self.layers)):
         curr = self.layers[i]
 
@@ -623,11 +637,12 @@ class Sequential:
         else: layer_names[curr.name] += 1
         curr.name += f&#39;_{str(layer_names[curr.name])}&#39;
 
-        # Setup layers based on surrounding layers
-        if i &gt; 0:
-            size_curr = curr.output_shape
-            size_prev = self.layers[i - 1].output_shape
-            self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)</code></pre>
+        # Setup layers based on surrounding layers            
+        if size_prev is None: size_prev = self.layers[0].input_shape
+        else: size_prev = self.layers[i - 1].output_shape
+         
+        size_curr = curr.output_shape
+        self.params[f&#39;W{i}&#39;], self.params[f&#39;B{i}&#39;] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.models.Sequential.compute_accuracy"><code class="name flex">
@@ -726,9 +741,8 @@ correct labels for a number of unknown test examples.</p>
     &#34;&#34;&#34;
 
     params = self.params
-    params[&#39;A0&#39;] = inputs
-
-    for i in range(1, len(self.layers)):
+    params[&#39;A-1&#39;] = inputs        
+    for i in range(0, len(self.layers)):            
         self.layers[i].forward_pass(params)
 
     return params.get(f&#39;A{len(self.layers) - 1}&#39;, f&#39;No output from layer {len(self.layers) - 1}&#39;)</code></pre>
@@ -772,7 +786,7 @@ correct labels for a number of unknown test examples.</p>
         list: Examples included in a mini batch. Yielded as a list containing a list with inputs and a list with outputs.
     &#34;&#34;&#34;
 
-    assert inputs.shape[0] == outputs.shape[0]
+    # assert inputs.shape[0] == outputs.shape[0]
 
     indices = np.arange(inputs.shape[0])
     if shuffle: np.random.shuffle(indices)
@@ -811,8 +825,9 @@ correct labels for a number of unknown test examples.</p>
     &#34;&#34;&#34;
     # Load trained network from .npz file
     if os.path.exists(params_path):
-        params = np.load(params_path)
+        params = np.load(params_path, allow_pickle=True)
         for key in params.files:
+            print(key)
             self.params[key] = params[key]</code></pre>
 </details>
 </dd>
@@ -839,8 +854,9 @@ correct labels for a number of unknown test examples.</p>
         new_params (dict, required): Adjustments to model parameters.
         divisor (int, required): Mini batch size.
     &#34;&#34;&#34;
+
     for key, value in new_params.items():
-        if key == &#39;error&#39;: continue
+        if key == &#39;error&#39;: continue    
         self.params[key] -= value / divisor</code></pre>
 </details>
 </dd>
@@ -909,7 +925,7 @@ correct labels for a number of unknown test examples.</p>
         mini_b_shuffle (bool, optional): Whether mini batch division should be random. Defaults to False.
     &#34;&#34;&#34;
 
-    assert inputs.shape[0] == outputs.shape[0]
+    # assert inputs.shape[0] == outputs.shape[0]
 
     self.learning_rate = learning_rate
 
@@ -917,11 +933,13 @@ correct labels for a number of unknown test examples.</p>
         if optimizer.upper() == &#39;SGD&#39;:
             mini_b_size = 1
         elif optimizer.upper() == &#39;BATCH&#39;:
-            mini_b_size = inputs.shape[0]
+            pass
+            # mini_b_size = inputs.shape[0]
 
         mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
 
         for mini_batch in mini_batches:
+            print(&#34;mini_batch&#34;)
             batch_x, batch_y = mini_batch
             avg_new_weights = {}
 

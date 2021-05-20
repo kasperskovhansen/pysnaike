@@ -43,7 +43,7 @@ class Client():
     &#34;&#34;&#34;Deep Q Learning client who acts on states and learns by its mistakes.
     &#34;&#34;&#34;
 
-    def __init__(self, epsilon=0.9, gamma=0.9, memory_capacity=10000, batch_size=10, learning_rate=0.01, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
+    def __init__(self, epsilon=0, gamma=0.97, memory_capacity=10000, batch_size=4, learning_rate=0.001, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
         
         self.state = None
         self.is_terminal = False
@@ -62,16 +62,21 @@ class Client():
         self.num_actions = num_actions
 
         # Replay memory
-        self.exp_bank = ExpReplay(self.memory_capacity)
+        self.exp_bank = self.reset_memory()
         if memory_path and os.path.exists(memory_path):
             memory = np.load(memory_path, allow_pickle=True)            
-            self.exp_bank.memory = memory[&#39;exp_bank&#39;][-self.memory_capacity:].tolist()
+            self.exp_bank.memory = memory[&#39;exp_bank&#39;].tolist()
+            print(&#34;loaded memory_bank&#34;)
+            # print(self.exp_bank.memory)
+            # print(self.exp_bank.memory.count(None))
+            # print(len(self.exp_bank.memory))
+            # breakpoint()
 
         # Action-value function
         if Q_1 is not None:
             self.Q_1 = Q_1
-            self.num_inputs = self.Q_1.layers[0].size
-            self.num_actions = self.Q_1.layers[-1].size
+            self.num_inputs = self.Q_1.layers[0].input_shape
+            self.num_actions = self.Q_1.layers[-1].output_shape
         elif num_actions is not None:
             self.Q_1 = models.Sequential()
             self.Q_1.add(layers.Dense(self.num_inputs, activation=activations.relu))
@@ -87,6 +92,9 @@ class Client():
             self.Q_2 = self.Q_1
 
         self.Q_2 = self.Q_1
+
+    def reset_memory(self):
+        return ExpReplay(self.memory_capacity)
 
     def choose_action(self):
         &#34;&#34;&#34;Choose an action from the current state.
@@ -155,9 +163,9 @@ class Client():
         samples = self.exp_bank.sample(self.batch_size)
         # [state, action, reward, (new_state, is_terminal)]
         outputs = None
-        targets = None
+        targets = None          
         if not samples or self.exp_bank.memory.count(None) is not 0:
-            return
+            return            
 
         for sample in samples:
             if sample[3][1]:
@@ -217,11 +225,11 @@ class ExpReplay():
 
         # while len(self.memory) &lt; self.capacity:
         #     self.memory.append(None)
-        # self.memory[self.position] = Transition(**kvargs)
-        self.memory.pop(self.position)
+        # self.memory[self.position] = Transition(**kvargs)                
+        self.memory.pop(0)
         # self.memory[self.position]
         self.memory.append(memory)
-        self.position = (self.position + 1) % self.capacity
+        # self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
         &#34;&#34;&#34;Retrieve a sample from the memory of size `batch_size`
@@ -253,7 +261,7 @@ class ExpReplay():
 <dl>
 <dt id="pysnaike.dql.Client"><code class="flex name class">
 <span>class <span class="ident">Client</span></span>
-<span>(</span><span>epsilon=0.9, gamma=0.9, memory_capacity=10000, batch_size=10, learning_rate=0.01, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None)</span>
+<span>(</span><span>epsilon=0, gamma=0.97, memory_capacity=10000, batch_size=4, learning_rate=0.001, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Deep Q Learning client who acts on states and learns by its mistakes.</p></div>
@@ -265,7 +273,7 @@ class ExpReplay():
     &#34;&#34;&#34;Deep Q Learning client who acts on states and learns by its mistakes.
     &#34;&#34;&#34;
 
-    def __init__(self, epsilon=0.9, gamma=0.9, memory_capacity=10000, batch_size=10, learning_rate=0.01, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
+    def __init__(self, epsilon=0, gamma=0.97, memory_capacity=10000, batch_size=4, learning_rate=0.001, Q_1=None, num_inputs=None, num_actions=None, params_path=None, memory_path=None):
         
         self.state = None
         self.is_terminal = False
@@ -284,16 +292,21 @@ class ExpReplay():
         self.num_actions = num_actions
 
         # Replay memory
-        self.exp_bank = ExpReplay(self.memory_capacity)
+        self.exp_bank = self.reset_memory()
         if memory_path and os.path.exists(memory_path):
             memory = np.load(memory_path, allow_pickle=True)            
-            self.exp_bank.memory = memory[&#39;exp_bank&#39;][-self.memory_capacity:].tolist()
+            self.exp_bank.memory = memory[&#39;exp_bank&#39;].tolist()
+            print(&#34;loaded memory_bank&#34;)
+            # print(self.exp_bank.memory)
+            # print(self.exp_bank.memory.count(None))
+            # print(len(self.exp_bank.memory))
+            # breakpoint()
 
         # Action-value function
         if Q_1 is not None:
             self.Q_1 = Q_1
-            self.num_inputs = self.Q_1.layers[0].size
-            self.num_actions = self.Q_1.layers[-1].size
+            self.num_inputs = self.Q_1.layers[0].input_shape
+            self.num_actions = self.Q_1.layers[-1].output_shape
         elif num_actions is not None:
             self.Q_1 = models.Sequential()
             self.Q_1.add(layers.Dense(self.num_inputs, activation=activations.relu))
@@ -309,6 +322,9 @@ class ExpReplay():
             self.Q_2 = self.Q_1
 
         self.Q_2 = self.Q_1
+
+    def reset_memory(self):
+        return ExpReplay(self.memory_capacity)
 
     def choose_action(self):
         &#34;&#34;&#34;Choose an action from the current state.
@@ -377,9 +393,9 @@ class ExpReplay():
         samples = self.exp_bank.sample(self.batch_size)
         # [state, action, reward, (new_state, is_terminal)]
         outputs = None
-        targets = None
+        targets = None          
         if not samples or self.exp_bank.memory.count(None) is not 0:
-            return
+            return            
 
         for sample in samples:
             if sample[3][1]:
@@ -546,6 +562,19 @@ class ExpReplay():
     return self.argmax(self.Q_1.forward_pass(state))</code></pre>
 </details>
 </dd>
+<dt id="pysnaike.dql.Client.reset_memory"><code class="name flex">
+<span>def <span class="ident">reset_memory</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reset_memory(self):
+    return ExpReplay(self.memory_capacity)</code></pre>
+</details>
+</dd>
 <dt id="pysnaike.dql.Client.train"><code class="name flex">
 <span>def <span class="ident">train</span></span>(<span>self)</span>
 </code></dt>
@@ -562,9 +591,9 @@ class ExpReplay():
     samples = self.exp_bank.sample(self.batch_size)
     # [state, action, reward, (new_state, is_terminal)]
     outputs = None
-    targets = None
+    targets = None          
     if not samples or self.exp_bank.memory.count(None) is not 0:
-        return
+        return            
 
     for sample in samples:
         if sample[3][1]:
@@ -622,11 +651,11 @@ class ExpReplay():
 
         # while len(self.memory) &lt; self.capacity:
         #     self.memory.append(None)
-        # self.memory[self.position] = Transition(**kvargs)
-        self.memory.pop(self.position)
+        # self.memory[self.position] = Transition(**kvargs)                
+        self.memory.pop(0)
         # self.memory[self.position]
         self.memory.append(memory)
-        self.position = (self.position + 1) % self.capacity
+        # self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
         &#34;&#34;&#34;Retrieve a sample from the memory of size `batch_size`
@@ -663,11 +692,10 @@ class ExpReplay():
 
     # while len(self.memory) &lt; self.capacity:
     #     self.memory.append(None)
-    # self.memory[self.position] = Transition(**kvargs)
-    self.memory.pop(self.position)
+    # self.memory[self.position] = Transition(**kvargs)                
+    self.memory.pop(0)
     # self.memory[self.position]
-    self.memory.append(memory)
-    self.position = (self.position + 1) % self.capacity</code></pre>
+    self.memory.append(memory)</code></pre>
 </details>
 </dd>
 <dt id="pysnaike.dql.ExpReplay.sample"><code class="name flex">
@@ -746,11 +774,12 @@ class ExpReplay():
 <ul>
 <li>
 <h4><code><a title="pysnaike.dql.Client" href="#pysnaike.dql.Client">Client</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="pysnaike.dql.Client.add_exp" href="#pysnaike.dql.Client.add_exp">add_exp</a></code></li>
 <li><code><a title="pysnaike.dql.Client.argmax" href="#pysnaike.dql.Client.argmax">argmax</a></code></li>
 <li><code><a title="pysnaike.dql.Client.choose_action" href="#pysnaike.dql.Client.choose_action">choose_action</a></code></li>
 <li><code><a title="pysnaike.dql.Client.max_action" href="#pysnaike.dql.Client.max_action">max_action</a></code></li>
+<li><code><a title="pysnaike.dql.Client.reset_memory" href="#pysnaike.dql.Client.reset_memory">reset_memory</a></code></li>
 <li><code><a title="pysnaike.dql.Client.train" href="#pysnaike.dql.Client.train">train</a></code></li>
 </ul>
 </li>

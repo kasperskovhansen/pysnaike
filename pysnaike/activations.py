@@ -1,6 +1,5 @@
 """Activation functions used in Deep Learning."""
 
-
 import numpy as np
 
 
@@ -31,19 +30,6 @@ def identity(x, derivative=False):
 
     if derivative: return np.full(x.shape, 1)
     else: return x
-
-
-def input(x, derivative=False):
-    """Activation function used at input layer.
-
-    Args:
-        x (list): Vector with input values.
-        derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
-    """
-
-    return x
-
-# _sigmoid_not_vect
 
 def sigmoid(x, derivative=False):
     """Non vectorized sigmoid activation function.
@@ -117,14 +103,3 @@ def leaky_relu(x, derivative=False):
     """
 
     return __leaky_relu(x, derivative=derivative)
-
-
-# def sigmoid(x, derivative=False):
-#     """Vectorized sigmoid activation function.
-
-#     Args:
-#         x (list): Vector with input values.
-#         derivative (bool, optional): Whether the derivative should be returned instead. Defaults to False.
-#     """
-
-#     return __sigmoid(x, derivative=derivative)
