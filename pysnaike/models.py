@@ -4,10 +4,11 @@
 import numpy as np
 import pysnaike.activations as activations
 import pysnaike.callbacks as callbacks
+import pysnaike.constraints as constraints
 from tqdm import tqdm
 import os.path
 from tabulate import tabulate
-
+from datetime import datetime
 
 class Sequential:
     """Deep Neural Network made of stacked layers.
@@ -16,9 +17,6 @@ class Sequential:
         layers (list): List of layers in the model.
         params (dict): Model parameters.
         learning_rate (float): Size of learning steps.
-
-    Todo:
-        Add checkpoint callback support.
     """
 
     def __init__(self) -> None:
@@ -70,6 +68,7 @@ class Sequential:
              
             size_curr = curr.output_shape
             self.params[f'W{i}'], self.params[f'B{i}'] = curr.setup(size_curr=size_curr, size_prev=size_prev, layer_idx=i)
+            
 
     def sgd_update_network_params(self, new_params):
         """Adjust network parameters according to update rule from Stochastic Gradient Descent.
@@ -93,6 +92,11 @@ class Sequential:
 
         for key, value in new_params.items():
             if key == 'error': continue    
+            
+            # Experimental. Normalization of network parameters before applying
+            value = constraints.max_norm(self.learning_rate).constrain(value)
+            if np.isnan(value).any():
+                breakpoint()            
             self.params[key] -= value / divisor
 
     def iterate_minibatches(self, inputs, outputs, batch_size, shuffle=False):
@@ -107,8 +111,6 @@ class Sequential:
         Yields:
             list: Examples included in a mini batch. Yielded as a list containing a list with inputs and a list with outputs.
         """
-
-        # assert inputs.shape[0] == outputs.shape[0]
 
         indices = np.arange(inputs.shape[0])
         if shuffle: np.random.shuffle(indices)
@@ -146,12 +148,10 @@ class Sequential:
                 mini_b_size = 1
             elif optimizer.upper() == 'BATCH':
                 pass
-                # mini_b_size = inputs.shape[0]
-
+                # mini_b_size = inputs.shape[0]            
             mini_batches = self.iterate_minibatches(inputs, outputs, mini_b_size, mini_b_shuffle)
-
             batch = 0
-            for mini_batch in mini_batches:
+            for mini_batch in mini_batches:                
                 callbacks.execute("mini_batch")
                 batch += 1
                 # print(f"mini_batch {i}")
@@ -159,19 +159,28 @@ class Sequential:
                 avg_new_weights = {}
 
                 num_in_batch = 0
-                for x, y in zip(batch_x, batch_y):       
-                    num_in_batch += 1  
-                    callbacks.execute("train_example", num_batch=batch, num_in_batch=num_in_batch)           
-                    output = self.forward_pass(x)                    
-                    new_weights = self.backward_pass(output, y)                    
-
+                for x, y in zip(batch_x, batch_y):                           
+                    num_in_batch += 1                      
+                    callbacks.execute("train_example", num_batch=batch, num_in_batch=num_in_batch)                                            
+                    output = self.forward_pass(x)                                        
+                    new_weights = self.backward_pass(output, y)                         
                     if not avg_new_weights: avg_new_weights = new_weights
                     else:
-                        for key, value in new_weights.items():
-                            avg_new_weights[key] -= learning_rate * value
-                self.mini_b_update_network_params(new_weights, batch_x.shape[0])
+                        for key, value in new_weights.items():                                   
+                            avg_new_weights[key] -= learning_rate * value  
+                self.mini_b_update_network_params(avg_new_weights, batch_x.shape[0])
             num_epoch += 1
             callbacks.execute("epoch", num_epoch=num_epoch)
+
+    def finalize(self):
+         for i in range(0, len(self.layers)):
+             if hasattr(self.layers[i], 'finalize'):
+                self.layers[i].finalize(self.params)
+    
+    def unfinalize(self):
+         for i in range(0, len(self.layers)):
+             if hasattr(self.layers[i], 'unfinalize'):
+                self.layers[i].unfinalize(self.params)
 
     def compute_accuracy(self, inputs, outputs):
         """Test the network accuracy by comparing the network output with
@@ -185,27 +194,31 @@ class Sequential:
             float: The accuracy as a number between 0 and 1.
         """
 
+        self.finalize()
         predictions = []
         for _, (x, y) in enumerate(zip(inputs, outputs)):
-            pred = self.forward_pass(x)
+            pred = self.forward_pass(x, is_training=False)
             predictions.append(pred.argmax() == y.argmax())
+
+        self.unfinalize()
 
         return np.mean(predictions)
 
-    def forward_pass(self, inputs):
+    def forward_pass(self, inputs, is_training=True):
         """Calculate the output from the network for a given set of input values.
 
         Args:
             inputs (required): Input values for the network.
+            training (bool, optional): Whether forward pass is during training or not. Defaults to True.
 
         Returns:
             list: The output values from the network.
         """
 
         params = self.params
-        params['A-1'] = inputs        
-        for i in range(0, len(self.layers)):            
-            self.layers[i].forward_pass(params)
+        params['A-1'] = inputs                
+        for i in range(0, len(self.layers)):      
+            self.layers[i].forward_pass(params, is_training=is_training)
 
         return params.get(f'A{len(self.layers) - 1}', f'No output from layer {len(self.layers) - 1}')
 
@@ -230,7 +243,10 @@ class Sequential:
 
         # Propagate backward through every layer. Model parameters are mutated inplace and the immutable `gradient` is returned
         for i in reversed(range(0, last_layer + 1)):
+            # start_time = datetime.now()
+            # print(f"backward layer: {i}")
             gradient = self.layers[i].backward_pass(gradient, is_last=is_last, output=output, target=target, new_params=new_params, model=self)
+            # print(f"Time: {datetime.now() - start_time}")
             if is_last:
                 is_last = False
 

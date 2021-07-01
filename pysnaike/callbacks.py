@@ -10,6 +10,7 @@ class Callbacks:
         self.callbacks = {}
 
     def on(self, event: str, callback_func):
+        # Supports several callback functions per event.
         if not event in self.callbacks:
             self.callbacks[event] = [callback_func]
         else:

@@ -29,7 +29,7 @@ class Connect_four_ai():
         self.Q.compile()
         # self.Q.description()
         # Reinforcement client
-        self.client = dql.Client(Q_1=self.Q, memory_capacity=1000, batch_size=4, params_path=params_path, memory_path=memory_path)
+        self.client = dql.Client(Q_1=self.Q, memory_capacity=10000, batch_size=4, params_path=params_path, memory_path=memory_path)
         self.first_iteration = True
 
     def make_move(self, state, is_terminal, reward):

@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt                    # Used for creating plot
 from matplotlib import style                            # Graph style
 style.use('fivethirtyeight')
 
-num_images = 20
+num_images = 50
 acc = np.array([])
 
 def load_mnist_data(file_path=None):
@@ -41,14 +41,14 @@ def load_mnist_data(file_path=None):
         # Split dataset into training data and test data
         # [x_train, x_val, y_train, y_val]
         x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.15, random_state=42)    
-        num_examples = 400
+        num_examples = 1000
         x_train = np.array(x_train)[:num_examples]        
         x_val = np.array(x_val)[:num_examples]
         y_train = np.array(y_train)[:num_examples]
         y_val = np.array(y_val)[:num_examples]
         # data = np.array([x_train, x_val, y_train, y_val])
         print("saving file")
-        np.savez("400_imgs.npz", x_train=x_train, x_val=x_val, y_train=y_train, y_val=y_val)
+        np.savez("1000_imgs.npz", x_train=x_train, x_val=x_val, y_train=y_train, y_val=y_val)
         print("saved")
     return [x_train, x_val, y_train, y_val]
 
@@ -84,13 +84,16 @@ def epoch_callback(**kvargs):
     plt.pause(.001)
 
 
+
+
+
 print('Loading data...')
 dataset = load_mnist_data(file_path="400_imgs.npz")
 
 M = models.Sequential()
 
 M.add(layers.Reshape((1,28,28), input_shape=(1,784)))
-M.add(layers.Conv2D(32, kernel_size=(3,3), input_shape=(1,28,28), padding="same", activation=activations.leaky_relu))
+M.add(layers.Conv2D(15, kernel_size=(3,3), input_shape=(1,28,28), padding="same", activation=activations.leaky_relu))
 M.add(layers.MaxPooling2D((2,2)))
 M.add(layers.Flatten())
 M.add(layers.Dense(100, activation=activations.leaky_relu))
@@ -99,11 +102,13 @@ M.add(layers.Dense(10, activation=activations.softmax))
 M.compile()
 M.description()
 
-params_path = "mnist_model.npz"
-if os.path.exists(params_path):
-    params = np.load(params_path, allow_pickle=True)
-    for key in params.files:
-        M.params[key] = params[key]
+
+
+# params_path = "mnist_model.npz"
+# if os.path.exists(params_path):
+#     params = np.load(params_path, allow_pickle=True)
+#     for key in params.files:
+#         M.params[key] = params[key]
 
 print("training ...")
 
@@ -111,7 +116,9 @@ print("training ...")
 my_callbacks = callbacks.Callbacks()
 my_callbacks.on("train_example", train_example_callback)
 my_callbacks.on("epoch", epoch_callback)
-M.train(dataset[0][:num_images], dataset[2][:num_images], epochs=8, mini_b_size=1, learning_rate=0.001, optimizer='BATCH', callbacks=my_callbacks)
+
+M.train(dataset[0][:num_images], dataset[2][:num_images], epochs=8, mini_b_size=3, learning_rate=0.001, optimizer='BATCH', callbacks=my_callbacks)
+
 print("done")
 accuracy = M.compute_accuracy(dataset[1][:num_images], dataset[3][:num_images])
 print(f"Final accuracy: {accuracy}")

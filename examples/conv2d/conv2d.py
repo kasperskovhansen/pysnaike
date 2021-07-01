@@ -65,7 +65,7 @@ M.description()
 #     for key in params.files:
 #         M.params[key] = params[key]
 
-M.train(inputs, targets, optimizer='SGD', epochs=1, learning_rate=0.0001)
+M.train(inputs, targets, optimizer='SGD', epochs=10, learning_rate=0.001)
 # # Save the network params to disk
 # np.savez('network_params.npz', **M.params)
 # print('Done saving.')

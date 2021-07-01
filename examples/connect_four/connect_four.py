@@ -3,7 +3,7 @@
 
 import pygame
 from game import Connect_four_game
-from connec_four_ai import Connect_four_ai
+from connect_four_ai import Connect_four_ai
 import numpy as np
 import os
 

@@ -51,7 +51,7 @@ M.add(layers.Conv2D(3, kernel_size=(3, 3), input_shape=(inputs.shape[-3:]), padd
 M.compile()
 M.description()
 
-M.train(inputs, targets, optimizer='SGD', epochs=100000, learning_rate=0.001)
+M.train(inputs, targets, optimizer='SGD', epochs=5000, learning_rate=0.001)
 
 # test model on new input
 output = M.forward_pass(np.squeeze(inputs, axis=0))
